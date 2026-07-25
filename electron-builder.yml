@@ -1,0 +1,36 @@
+appId: com.ryan.rlauncher-vibe
+productName: "Ryan's Launcher Vibe"
+copyright: 'Copyright © 2026 Ryan'
+
+directories:
+  output: release
+  buildResources: resources
+
+files:
+  - dist/**/*
+  - package.json
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: '${productName}-Setup-${version}-win-x64.${ext}'
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+
+extraResources:
+  - from: resources/bin/easytier
+    to: bin/easytier
+    filter:
+      - '**/*'
+
+extraMetadata:
+  main: dist/main/src/main/index.js
+
+# macOS and Linux configs to be added later
