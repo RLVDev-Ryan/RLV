@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { themeStore, type ThemeSettings } from '../stores/themeStore';
 import { useI18n } from '../hooks/useI18n';
 
-type SettingsTab = 'personalization' | 'language';
+type SettingsTab = 'personalization' | 'language' | 'about';
 
 const FONT_OPTIONS = [
   'Noto Serif CJK SC',
@@ -40,6 +40,11 @@ const TABS: { key: SettingsTab; labelKey: string; icon: string }[] = [
     key: 'language',
     labelKey: 'settings.language_font',
     icon: `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.5"/><path d="M3 9h12M9 2a11 11 0 010 14A11 11 0 019 2z" stroke="currentColor" strokeWidth="1.5"/></svg>`,
+  },
+  {
+    key: 'about',
+    labelKey: 'settings.about',
+    icon: `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.5"/><circle cx="9" cy="9" r="1" fill="currentColor"/><path d="M9 8v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>`,
   },
 ];
 
@@ -85,6 +90,7 @@ export default function SettingsPage() {
         <div className="settings-content">
           {activeTab === 'personalization' && <PersonalizationSection theme={theme} onThemeChange={updateTheme} />}
           {activeTab === 'language' && <LanguageSection theme={theme} onThemeChange={updateTheme} />}
+          {activeTab === 'about' && <AboutSection />}
         </div>
       </div>
     </div>
@@ -208,6 +214,93 @@ function LanguageSection({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ── About ── */
+function AboutSection() {
+  return (
+    <div className="settings-section">
+      <h2 className="settings-section-title">关于 Ryan's Launcher Vibe</h2>
+      <p className="settings-section-desc">RLV — 一个现代化的 Minecraft 启动器</p>
+
+      <div className="settings-card">
+        <h3 className="settings-card-title">参考的开源启动器项目</h3>
+        <CreditsList
+          items={[
+            ['HMCL (Hello Minecraft! Launcher)', '联机、版本管理、设置界面参考'],
+            ['PCL2 (Plain Craft Launcher 2)', 'UI 风格、加载器图标参考'],
+            ['X Minecraft Launcher (XMCL)', '主进程/渲染进程架构参考'],
+            ['RMCL', '联机与账户逻辑参考'],
+            ['YNG Client', '微软 OAuth2 登录流程参考'],
+            ['Verse', '配色与界面设计参考'],
+          ]}
+        />
+      </div>
+
+      <div className="settings-card">
+        <h3 className="settings-card-title">核心依赖库</h3>
+        <CreditsList
+          items={[
+            ['Electron', '跨平台桌面框架'],
+            ['React', 'UI 框架'],
+            ['Vite', '构建工具'],
+            ['TypeScript', '语言'],
+            ['electron-builder', '打包'],
+            ['electron-updater', '自动更新'],
+            ['@xmcl/user', '微软 / Yggdrasil 认证'],
+            ['@azure/msal-node', '微软 OAuth'],
+            ['lucide-react', '图标'],
+          ]}
+        />
+      </div>
+
+      <div className="settings-card">
+        <h3 className="settings-card-title">字体（SIL OFL 1.1）</h3>
+        <CreditsList
+          items={[
+            ['Noto Serif CJK（思源宋体）', 'SIL OFL 1.1'],
+            ['Noto Sans CJK（思源黑体）', 'SIL OFL 1.1'],
+            ['Noto Sans Mono CJK（思源等宽）', 'SIL OFL 1.1'],
+            ['Maple Mono NF CN（枫叶等宽）', 'SIL OFL 1.1'],
+          ]}
+        />
+      </div>
+
+      <div className="settings-card">
+        <h3 className="settings-card-title">联机方案</h3>
+        <CreditsList
+          items={[
+            ['EasyTier', 'P2P 虚拟局域网'],
+            ['Terracotta（陶瓦联机）', 'HMCL 联机协议参考'],
+          ]}
+        />
+      </div>
+
+      <div className="settings-card">
+        <h3 className="settings-card-title">资料与 API</h3>
+        <CreditsList
+          items={[
+            ['Mojang 版本清单 API', '版本下载数据源'],
+            ['Minecraft Wiki', '游戏协议文档'],
+            ['npmmirror 镜像', 'electron-builder 构建工具加速'],
+          ]}
+        />
+      </div>
+    </div>
+  );
+}
+
+function CreditsList({ items }: { items: [string, string][] }) {
+  return (
+    <div className="credits-list">
+      {items.map(([name, desc]) => (
+        <div key={name} className="credits-item">
+          <span className="credits-name">{name}</span>
+          <span className="credits-desc">{desc}</span>
+        </div>
+      ))}
     </div>
   );
 }

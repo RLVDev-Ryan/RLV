@@ -10,6 +10,7 @@
   "settings.title": "設定",
   "settings.personalization": "カスタマイズ",
   "settings.language": "言語",
+  "settings.about": "情報",
   "settings.language_font": "言語とフォント",
   "settings.language.desc": "言語を切り替えると対応する Noto Serif CJK 書体に自動変更されます",
   "settings.theme.light": "ライトモード",

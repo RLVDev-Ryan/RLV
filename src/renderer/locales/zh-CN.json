@@ -10,6 +10,7 @@
   "settings.title": "设置",
   "settings.personalization": "个性化",
   "settings.language": "语言",
+  "settings.about": "关于",
   "settings.language_font": "语言与字体",
   "settings.language.desc": "切换语言后自动匹配对应的 Noto Serif CJK 字形变体",
   "settings.theme.light": "浅色模式",

@@ -10,6 +10,7 @@
   "settings.title": "Settings",
   "settings.personalization": "Personalization",
   "settings.language": "Language",
+  "settings.about": "About",
   "settings.language_font": "Language & Font",
   "settings.language.desc": "Switch language to auto-select the matching Noto Serif CJK variant",
   "settings.theme.light": "Light Mode",

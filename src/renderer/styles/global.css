@@ -2159,6 +2159,33 @@ body,
   margin-bottom: 14px;
 }
 
+/* ── 鸣谢列表 ── */
+.credits-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.credits-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.credits-name {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.credits-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: right;
+}
+
 /* Theme switch buttons */
 .theme-switch-group {
   display: flex;
