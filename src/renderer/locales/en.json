@@ -128,6 +128,7 @@
   "account.add": "Add Account",
   "account.not_logged_in": "Not logged in",
   "account.microsoft": "Microsoft Account",
+  "account.offline": "Offline Account",
   "account.yggdrasil": "External Login",
   "account.login_microsoft": "Microsoft Login",
   "account.login_microsoft_desc": "Sign in with Microsoft account",

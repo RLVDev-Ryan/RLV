@@ -128,6 +128,7 @@
   "account.add": "添加新账户",
   "account.not_logged_in": "未登录",
   "account.microsoft": "微软账户",
+  "account.offline": "离线账户",
   "account.yggdrasil": "外置登录",
   "account.login_microsoft": "正版登录（微软）",
   "account.login_microsoft_desc": "使用微软账号登录 Minecraft",

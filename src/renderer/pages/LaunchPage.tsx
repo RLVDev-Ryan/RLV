@@ -21,9 +21,24 @@ export default function LaunchPage() {
   const [selectedVersion, setSelectedVersion] = useState<MinecraftVersion | null>(null);
   const [detailVersion, setDetailVersion] = useState<MinecraftVersion | null>(null);
 
+  // ── Launch state ──
+  const [launching, setLaunching] = useState(false);
+  const [launchProgress, setLaunchProgress] = useState<{ stage: string; percent: number; message?: string; error?: string } | null>(null);
+
   // Load accounts on mount
   useEffect(() => {
     loadAccounts();
+  }, []);
+
+  // Subscribe to launch progress
+  useEffect(() => {
+    if (!window.electronAPI) return;
+    const cleanup = window.electronAPI.launch.onProgress((p) => {
+      setLaunchProgress(p);
+      if (p.stage === 'done') setLaunching(false);
+      if (p.stage === 'error') setLaunching(false);
+    });
+    return cleanup;
   }, []);
 
   const loadAccounts = useCallback(async () => {
@@ -65,6 +80,16 @@ export default function LaunchPage() {
     setShowAddAccount(false);
   }, []);
 
+  const handleOfflineLogin = useCallback(async (username: string) => {
+    if (!window.electronAPI) return;
+    const account = await window.electronAPI.accounts.addOffline(username);
+    if (account) {
+      setAccounts((prev) => [...prev.filter((a) => a.id !== account.id), account]);
+      setCurrentAccount(account);
+    }
+    setShowAddAccount(false);
+  }, []);
+
   const handleRemoveAccount = useCallback(async (id: string) => {
     if (!window.electronAPI) return;
     await window.electronAPI.accounts.remove(id);
@@ -73,11 +98,23 @@ export default function LaunchPage() {
 
   // ── Version handlers ──
   const handleLaunch = useCallback(async () => {
-    if (!selectedVersion) return;
-    if (window.electronAPI) {
-      await window.electronAPI.showAlert(`启动 ${selectedVersion.id}`);
+    if (!selectedVersion || !window.electronAPI) return;
+    setLaunching(true);
+    setLaunchProgress({ stage: 'start', percent: 0, message: '准备启动…' });
+    try {
+      const result = await window.electronAPI.launch.game(
+        selectedVersion.id,
+        currentAccount?.name ?? 'Player',
+      );
+      if (!result.success && result.error) {
+        setLaunchProgress({ stage: 'error', percent: 0, error: result.error });
+      }
+    } catch (err) {
+      setLaunchProgress({ stage: 'error', percent: 0, error: String(err) });
+    } finally {
+      setLaunching(false);
     }
-  }, [selectedVersion]);
+  }, [selectedVersion, currentAccount]);
 
   const handleAddFolder = useCallback(async () => {
     if (window.electronAPI) {
@@ -121,9 +158,24 @@ export default function LaunchPage() {
       <div className="launch-row launch-row--actions">
         <div className="launch-actions-left">
           <VersionSelector versions={versions} selected={selectedVersion} onSelect={setSelectedVersion} />
-          <button className="btn btn--primary btn--launch" disabled={!selectedVersion} onClick={handleLaunch}>
-            {t('launch_page.launch')}
+          <button
+            className="btn btn--primary btn--launch"
+            disabled={!selectedVersion || launching}
+            onClick={handleLaunch}
+          >
+            {launching ? '启动中…' : t('launch_page.launch')}
           </button>
+          {launchProgress && (
+            <div className="launch-progress">
+              {launchProgress.error ? (
+                <span className="launch-progress-error">{launchProgress.error}</span>
+              ) : (
+                <span>
+                  {launchProgress.message || launchProgress.stage} ({launchProgress.percent}%)
+                </span>
+              )}
+            </div>
+          )}
         </div>
         <div className="launch-actions-right">
           <button className="btn btn--outline btn--small" onClick={handleAddFolder}>
@@ -146,6 +198,14 @@ export default function LaunchPage() {
           ))}
         </div>
       )}
+
+      <AddAccountDialog
+        open={showAddAccount}
+        onClose={() => setShowAddAccount(false)}
+        onMicrosoft={handleMicrosoftLogin}
+        onYggdrasil={handleYggdrasilLogin}
+        onOffline={handleOfflineLogin}
+      />
     </div>
   );
 }

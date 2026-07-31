@@ -412,6 +412,15 @@ body,
   margin-top: 4px;
 }
 
+.launch-progress {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.launch-progress-error {
+  color: var(--danger);
+}
+
 .launch-cards {
   display: flex;
   flex-direction: column;
@@ -792,6 +801,11 @@ body,
 .auth-option-icon--yellow {
   color: #dbb774;
   background: rgba(219, 183, 116, 0.1);
+}
+
+.auth-option-icon--green {
+  color: var(--success);
+  background: var(--success-bg);
 }
 
 .auth-option-text {
@@ -2171,7 +2185,23 @@ body,
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  padding: 4px 0;
+  padding: 6px 0;
+}
+
+.credits-item--clickable {
+  width: 100%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: background var(--transition-fast);
+  padding: 8px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.credits-item--clickable:hover {
+  background: var(--bg-hover);
 }
 
 .credits-name {
@@ -2180,10 +2210,16 @@ body,
   font-weight: 500;
 }
 
-.credits-desc {
-  font-size: 12px;
+.credits-license {
+  font-size: 11px;
   color: var(--text-muted);
-  text-align: right;
+  white-space: nowrap;
+}
+
+.credit-detail-text {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.7;
 }
 
 /* Theme switch buttons */

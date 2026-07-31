@@ -1,14 +1,17 @@
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { app, BrowserWindow, ipcMain, dialog, clipboard } from 'electron';
 import { createMainWindow } from './windows/mainWindow';
 import { IPC_CHANNELS } from '../shared/constants';
+import type { Account } from '../shared/constants';
 import { listAccounts, getCurrentAccount, setCurrentAccount, addAccount, removeAccount } from './accounts/accountStore';
 import { authenticateMicrosoft } from './accounts/microsoftAuth';
 import { authenticateYggdrasil } from './accounts/yggdrasilAuth';
 import { getDefaultGameDir, getAllGameDirs, addGameDir, removeGameDir, getVersionDir } from './gameDirs/gameDirsStore';
 import { downloadVersion, fetchVersionManifest } from './downloader/downloaderManager';
 import { initAutoUpdater, downloadUpdate, quitAndInstall, setUpdaterWindow } from './updater/updater';
+import { launchGame, offlineUUID } from './launcher/launcher';
 import {
   getEasyTierPath,
   getLocalIP,
@@ -163,6 +166,18 @@ function registerIpcHandlers(): void {
     },
   );
 
+  ipcMain.handle(IPC_CHANNELS.ACCOUNTS_ADD_OFFLINE, (_event, username: string) => {
+    const account: Account = {
+      id: crypto.randomUUID(),
+      type: 'offline',
+      name: username,
+      uuid: offlineUUID(username),
+      createdAt: Date.now(),
+    };
+    addAccount(account, true);
+    return account;
+  });
+
   ipcMain.handle(IPC_CHANNELS.ACCOUNTS_REMOVE, (_event, id: string) => {
     return removeAccount(id);
   });
@@ -175,6 +190,30 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.UPDATE_INSTALL, () => {
     quitAndInstall();
     return { success: true };
+  });
+
+  // ── Game launch ──
+  ipcMain.handle(IPC_CHANNELS.LAUNCH_GAME, async (_event, versionId: string, playerName: string) => {
+    const account = getCurrentAccount();
+    const auth = account
+      ? {
+          playerName: account.name || playerName,
+          uuid: account.uuid,
+          accessToken:
+            account.type === 'microsoft'
+              ? account.minecraftToken || '0'
+              : account.yggdrasilToken || '0',
+        }
+      : {
+          playerName: playerName || 'Player',
+          uuid: offlineUUID(playerName || 'Player'),
+          accessToken: '0',
+        };
+    return launchGame(versionId, auth, (progress) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(IPC_CHANNELS.LAUNCH_PROGRESS, progress);
+      }
+    });
   });
 
   // ── EasyTier P2P + LAN scan ──

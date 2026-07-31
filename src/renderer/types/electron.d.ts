@@ -6,6 +6,7 @@ export interface AccountAPI {
   setCurrent: (id: string) => Promise<Account | null>;
   addMicrosoft: () => Promise<Account | null>;
   addYggdrasil: (params: { serverUrl: string; username: string; password: string }) => Promise<Account | null>;
+  addOffline: (username: string) => Promise<Account | null>;
   remove: (id: string) => Promise<boolean>;
 }
 
@@ -25,6 +26,11 @@ export interface GameDirsAPI {
   add: () => Promise<string[] | null>;
   remove: (dir: string) => Promise<string[]>;
   getVersionPath: (versionId: string) => Promise<string>;
+}
+
+export interface LaunchAPI {
+  game: (versionId: string, playerName: string) => Promise<{ success: boolean; error?: string }>;
+  onProgress: (callback: (progress: any) => void) => () => void;
 }
 
 export interface UpdateAPI {
@@ -56,6 +62,7 @@ export interface ElectronAPI {
   gameDirs: GameDirsAPI;
   download: DownloadAPI;
   updater: UpdateAPI;
+  launch: LaunchAPI;
 }
 
 declare global {

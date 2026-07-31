@@ -66,6 +66,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ── Clipboard ──
   copyToClipboard: (text: string) => ipcRenderer.send(IPC_CHANNELS.CLIPBOARD_WRITE, text),
 
+  // ── Game launch ──
+  launch: {
+    game: (versionId: string, playerName: string): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.LAUNCH_GAME, versionId, playerName),
+    onProgress: (callback: (progress: any) => void) => {
+      const handler = (_event: any, progress: any) => callback(progress);
+      ipcRenderer.on(IPC_CHANNELS.LAUNCH_PROGRESS, handler);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.LAUNCH_PROGRESS, handler);
+    },
+  },
+
   // ── Auto updater ──
   updater: {
     onStatus: (callback: (status: any) => void) => {
@@ -98,6 +109,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     addMicrosoft: (): Promise<Account | null> => ipcRenderer.invoke(IPC_CHANNELS.ACCOUNTS_ADD_MICROSOFT),
     addYggdrasil: (params: { serverUrl: string; username: string; password: string }): Promise<Account | null> =>
       ipcRenderer.invoke(IPC_CHANNELS.ACCOUNTS_ADD_YGGDRASIL, params),
+    addOffline: (username: string): Promise<Account | null> =>
+      ipcRenderer.invoke(IPC_CHANNELS.ACCOUNTS_ADD_OFFLINE, username),
     remove: (id: string): Promise<boolean> => ipcRenderer.invoke(IPC_CHANNELS.ACCOUNTS_REMOVE, id),
   },
 });

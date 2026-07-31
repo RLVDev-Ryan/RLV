@@ -128,6 +128,7 @@
   "account.add": "계정 추가",
   "account.not_logged_in": "로그인되지 않음",
   "account.microsoft": "Microsoft 계정",
+  "account.offline": "오프라인 계정",
   "account.yggdrasil": "외부 로그인",
   "account.login_microsoft": "Microsoft 로그인",
   "account.login_microsoft_desc": "Microsoft 계정으로 로그인",

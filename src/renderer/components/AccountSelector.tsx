@@ -13,11 +13,13 @@ interface AccountSelectorProps {
 const TYPE_COLORS: Record<string, string> = {
   microsoft: '#00a4ef',
   yggdrasil: '#dbb774',
+  offline: '#8cb3a8',
 };
 
-const TYPE_I18N_KEY: Record<string, 'account.microsoft' | 'account.yggdrasil'> = {
+const TYPE_I18N_KEY: Record<string, 'account.microsoft' | 'account.yggdrasil' | 'account.offline'> = {
   microsoft: 'account.microsoft',
   yggdrasil: 'account.yggdrasil',
+  offline: 'account.offline',
 };
 
 function getInitials(name: string): string {

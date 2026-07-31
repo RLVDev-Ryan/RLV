@@ -7,6 +7,10 @@ export const IPC_CHANNELS = {
   // App lifecycle
   GET_APP_VERSION: 'app:get-version',
 
+  // Game launch
+  LAUNCH_GAME: 'launch:game',
+  LAUNCH_PROGRESS: 'launch:progress',
+
   // Auto updater
   UPDATE_STATUS: 'update:status',
   UPDATE_DOWNLOAD: 'update:download',
@@ -59,6 +63,7 @@ export const IPC_CHANNELS = {
   ACCOUNTS_SET_CURRENT: 'accounts:set-current',
   ACCOUNTS_ADD_MICROSOFT: 'accounts:add-microsoft',
   ACCOUNTS_ADD_YGGDRASIL: 'accounts:add-yggdrasil',
+  ACCOUNTS_ADD_OFFLINE: 'accounts:add-offline',
   ACCOUNTS_REMOVE: 'accounts:remove',
 } as const;
 
@@ -81,7 +86,7 @@ export const NAV_ITEMS = [
 export type NavKey = (typeof NAV_ITEMS)[number]['key'];
 
 /** Account types */
-export type AccountType = 'microsoft' | 'yggdrasil';
+export type AccountType = 'microsoft' | 'yggdrasil' | 'offline';
 
 export interface Account {
   id: string;
