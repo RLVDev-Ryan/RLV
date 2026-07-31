@@ -39,6 +39,14 @@ npm run dist:win   # 打包 Windows 安装器
 
 本项目基于 [MIT License](LICENSE) 开源。
 
+### 字体许可
+
+内置字体均基于 **SIL Open Font License 1.1** 许可，允许自由再分发和嵌入。详见：
+
+- [思源宋体 / 黑体 / 等宽（Noto CJK）](licenses/fonts/notoserif/LICENSE)
+- [枫叶等宽（Maple Mono NF CN）](licenses/fonts/maplemono/LICENSE.txt)
+- [思源黑体（Noto Sans CJK）](licenses/fonts/notosans/LICENSE)
+
 ## ⚠️ 声明
 
 - 陶瓦联机（Terracotta / EasyTier）为第三方开源软件
