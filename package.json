@@ -1,8 +1,10 @@
 {
-  "name": "rlauncher-vibe",
+  "name": "ryans-launcher-vibe",
   "productName": "Ryan's Launcher Vibe",
   "version": "0.1.0",
   "description": "A modern Minecraft launcher built with Electron + React + TypeScript",
+  "author": "Ryan <3773639748@qq.com> (https://github.com/RLVDev-Ryan)",
+  "license": "MIT",
   "main": "dist/main/src/main/index.js",
   "scripts": {
     "dev": "concurrently \"npm run dev:renderer\" \"npm run dev:main\"",
@@ -36,6 +38,7 @@
   "dependencies": {
     "@azure/msal-node": "^5.4.1",
     "@xmcl/user": "^4.3.0",
+    "electron-updater": "^6.8.9",
     "lucide-react": "^1.25.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"

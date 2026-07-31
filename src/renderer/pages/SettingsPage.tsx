@@ -1,13 +1,50 @@
 import { useState, useEffect, useCallback } from 'react';
 import { themeStore, type ThemeSettings } from '../stores/themeStore';
+import { useI18n } from '../hooks/useI18n';
 
-type SettingsTab = 'personalization';
+type SettingsTab = 'personalization' | 'language';
 
-const TABS: { key: SettingsTab; label: string; icon: string }[] = [
-  { key: 'personalization', label: '个性化', icon: 'assets/icons/custom-icon.png' },
+const FONT_OPTIONS = [
+  'Noto Serif CJK SC',
+  'Noto Serif CJK TC',
+  'Noto Serif CJK JP',
+  'Noto Serif CJK KR',
+  'Noto Serif CJK HK',
+  'Noto Sans CJK SC',
+  'Noto Sans CJK TC',
+  'Noto Sans CJK JP',
+  'Noto Sans CJK KR',
+  'Noto Sans CJK HK',
+  'Noto Sans Mono CJK SC',
+  'Maple Mono NF CN Thin',
+  'Maple Mono NF CN Thin Italic',
+  'Maple Mono NF CN ExtraLight',
+  'Maple Mono NF CN ExtraLight Italic',
+  'Maple Mono NF CN Light',
+  'Maple Mono NF CN Light Italic',
+  'Maple Mono NF CN Regular',
+  'Maple Mono NF CN Italic',
+  'Maple Mono NF CN Medium',
+  'Maple Mono NF CN Medium Italic',
+  'Maple Mono NF CN SemiBold',
+  'Maple Mono NF CN SemiBold Italic',
+  'Maple Mono NF CN Bold',
+  'Maple Mono NF CN Bold Italic',
+  'Maple Mono NF CN ExtraBold',
+  'Maple Mono NF CN ExtraBold Italic',
+] as const;
+
+const TABS: { key: SettingsTab; labelKey: string; icon: string }[] = [
+  { key: 'personalization', labelKey: 'settings.personalization', icon: 'assets/icons/custom-icon.png' },
+  {
+    key: 'language',
+    labelKey: 'settings.language_font',
+    icon: `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.5"/><path d="M3 9h12M9 2a11 11 0 010 14A11 11 0 019 2z" stroke="currentColor" strokeWidth="1.5"/></svg>`,
+  },
 ];
 
 export default function SettingsPage() {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<SettingsTab>('personalization');
   const [theme, setThemeState] = useState<ThemeSettings>(themeStore.current);
 
@@ -21,22 +58,23 @@ export default function SettingsPage() {
       <div className="settings-layout">
         {/* Left sidebar */}
         <nav className="settings-sidebar">
-          <h3 className="settings-sidebar-title">设置</h3>
           <ul className="settings-sidebar-list">
-            {TABS.map((t) => (
-              <li key={t.key}>
+            {TABS.map((tab) => (
+              <li key={tab.key}>
                 <button
-                  className={`settings-sidebar-item${activeTab === t.key ? ' settings-sidebar-item--active' : ''}`}
-                  onClick={() => setActiveTab(t.key)}
+                  className={`settings-sidebar-item${activeTab === tab.key ? ' settings-sidebar-item--active' : ''}`}
+                  onClick={() => setActiveTab(tab.key)}
                 >
                   <span className="settings-sidebar-item-icon">
-                    {t.icon.startsWith('assets/') ? (
-                      <img src={t.icon} alt="" className="settings-sidebar-custom-icon" draggable={false} />
+                    {tab.icon.startsWith('assets/') ? (
+                      <img src={tab.icon} alt="" className="settings-sidebar-custom-icon" draggable={false} />
+                    ) : tab.icon.startsWith('<svg') ? (
+                      <span dangerouslySetInnerHTML={{ __html: tab.icon }} />
                     ) : (
-                      t.icon
+                      tab.icon
                     )}
                   </span>
-                  <span>{t.label}</span>
+                  <span>{t(tab.labelKey as any)}</span>
                 </button>
               </li>
             ))}
@@ -46,7 +84,129 @@ export default function SettingsPage() {
         {/* Content */}
         <div className="settings-content">
           {activeTab === 'personalization' && <PersonalizationSection theme={theme} onThemeChange={updateTheme} />}
+          {activeTab === 'language' && <LanguageSection theme={theme} onThemeChange={updateTheme} />}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Language ── */
+function LanguageSection({
+  theme,
+  onThemeChange,
+}: {
+  theme: ThemeSettings;
+  onThemeChange: (p: Partial<ThemeSettings>) => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <div className="settings-section">
+      <h2 className="settings-section-title">{t('settings.language')}</h2>
+      <p className="settings-section-desc">{t('settings.language.desc')}</p>
+      <div className="settings-card">
+        <div className="theme-switch-group">
+          {(
+            [
+              { key: 'zh-CN', label: '简体中文' },
+              { key: 'zh-TW', label: '繁體中文' },
+              { key: 'ja', label: '日本語' },
+              { key: 'ko', label: '한국어' },
+              { key: 'en', label: 'English' },
+            ] as const
+          ).map((loc) => (
+            <button
+              key={loc.key}
+              className={`theme-switch-btn${theme.locale === loc.key ? ' theme-switch-btn--active' : ''}`}
+              onClick={() => onThemeChange({ locale: loc.key })}
+            >
+              {loc.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Font selector */}
+      <div className="settings-card">
+        <div className="settings-card-title-row">
+          <h3 className="settings-card-title" style={{ margin: 0 }}>选择字体</h3>
+          <div className="theme-switch-group" style={{ gap: 4 }}>
+            <button
+              className={`theme-switch-btn${theme.fontMode === 'global' ? ' theme-switch-btn--active' : ''}`}
+              onClick={() => onThemeChange({ fontMode: 'global' })}
+              style={{ padding: '4px 10px', fontSize: 12 }}
+            >
+              整体选择
+            </button>
+            <button
+              className={`theme-switch-btn${theme.fontMode === 'zone' ? ' theme-switch-btn--active' : ''}`}
+              onClick={() => onThemeChange({ fontMode: 'zone' })}
+              style={{ padding: '4px 10px', fontSize: 12 }}
+            >
+              分区选择
+            </button>
+          </div>
+        </div>
+
+        {theme.fontMode === 'global' ? (
+          <select
+            className="form-input form-select"
+            value={theme.fontFamily ?? 'Noto Serif CJK SC'}
+            onChange={(e) => onThemeChange({ fontFamily: e.target.value || null })}
+            style={{ marginTop: 12 }}
+          >
+            {FONT_OPTIONS.map((f) => (
+              <option key={f} value={f}>
+                {f === 'Noto Serif CJK SC' ? `${f}（默认）` : f}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
+            <div>
+              <label style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>内容</label>
+              <select
+                className="form-input form-select"
+                value={theme.fontContent ?? 'Noto Serif CJK SC'}
+                onChange={(e) => onThemeChange({ fontContent: e.target.value || null })}
+              >
+                {FONT_OPTIONS.map((f) => (
+                  <option key={f} value={f}>
+                    {f}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>按钮</label>
+              <select
+                className="form-input form-select"
+                value={theme.fontButtons ?? 'Noto Serif CJK SC'}
+                onChange={(e) => onThemeChange({ fontButtons: e.target.value || null })}
+              >
+                {FONT_OPTIONS.map((f) => (
+                  <option key={f} value={f}>
+                    {f}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>日志</label>
+              <select
+                className="form-input form-select"
+                value={theme.fontLogs ?? 'Noto Serif CJK SC'}
+                onChange={(e) => onThemeChange({ fontLogs: e.target.value || null })}
+              >
+                {FONT_OPTIONS.map((f) => (
+                  <option key={f} value={f}>
+                    {f}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -60,6 +220,7 @@ function PersonalizationSection({
   theme: ThemeSettings;
   onThemeChange: (p: Partial<ThemeSettings>) => void;
 }) {
+  const { t } = useI18n();
   const [hexInput, setHexInput] = useState(theme.accentColor);
 
   useEffect(() => {
@@ -125,12 +286,12 @@ function PersonalizationSection({
 
   return (
     <div className="settings-section">
-      <h2 className="settings-section-title">个性化</h2>
-      <p className="settings-section-desc">自定义启动器外观</p>
+      <h2 className="settings-section-title">{t('settings.personalization')}</h2>
+      <p className="settings-section-desc">{t('settings.personalization.desc')}</p>
 
       {/* Theme mode */}
       <div className="settings-card">
-        <h3 className="settings-card-title">主题模式</h3>
+        <h3 className="settings-card-title">{t('settings.theme.mode')}</h3>
         <div className="theme-switch-group">
           <button
             className={`theme-switch-btn${theme.mode === 'light' ? ' theme-switch-btn--active' : ''}`}
@@ -147,7 +308,7 @@ function PersonalizationSection({
                 />
               </svg>
             </span>
-            <span>浅色模式</span>
+            <span>{t('settings.theme.light')}</span>
           </button>
           <button
             className={`theme-switch-btn${theme.mode === 'dark' ? ' theme-switch-btn--active' : ''}`}
@@ -163,80 +324,30 @@ function PersonalizationSection({
                 />
               </svg>
             </span>
-            <span>深色模式</span>
+            <span>{t('settings.theme.dark')}</span>
           </button>
         </div>
       </div>
 
       {/* Background image */}
       <div className="settings-card">
-        <h3 className="settings-card-title">背景图片</h3>
-        <p className="settings-card-desc">支持拖拽或浏览选择图片（PNG / JPG / SVG / WebP 等）</p>
+        <h3 className="settings-card-title">{t('settings.bg.title')}</h3>
+        <p className="settings-card-desc">{t('settings.bg.desc')}</p>
 
-        <div
-          className="bg-image-dropzone"
-          onDragEnter={(e) => {
-            e.preventDefault();
-            if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
-            e.currentTarget.classList.add('bg-image-dropzone--over');
-          }}
-          onDragOver={(e) => {
-            e.preventDefault();
-            if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
-          }}
-          onDragLeave={(e) => {
-            e.currentTarget.classList.remove('bg-image-dropzone--over');
-          }}
-          onDrop={(e) => {
-            e.preventDefault();
-            e.currentTarget.classList.remove('bg-image-dropzone--over');
-            const file = e.dataTransfer.files[0];
-            if (file && /\.(png|jpe?g|svg|webp|bmp|gif|avif|tiff?)$/i.test(file.name)) {
-              setBgImage((file as any).path);
-            }
-          }}
-        >
-          {previewUrl ? (
-            <div className="bg-image-preview" style={{ backgroundImage: `url("${previewUrl}")` }} />
-          ) : theme.bgImagePath ? (
-            <div className="bg-image-preview" style={{ background: 'var(--bg-surface)' }} />
-          ) : (
-            <div className="bg-image-placeholder">
-              <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                <rect x="4" y="4" width="20" height="20" rx="4" stroke="currentColor" strokeWidth="1.5" fill="none" />
-                <path
-                  d="M10 14l3 3 5-6 4 5v2a1 1 0 01-1 1H7a1 1 0 01-1-1v-1l4-3z"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                />
-              </svg>
-              <span>拖拽图片到此处</span>
-            </div>
-          )}
-          {theme.bgImagePath && (
-            <button
-              className="bg-image-remove"
-              onClick={() => {
-                onThemeChange({ bgImagePath: null });
-                setPreviewUrl(null);
-              }}
-              title="移除背景"
-            >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path d="M2 2l10 10M12 2l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-            </button>
-          )}
-        </div>
+        {previewUrl && <div className="bg-image-preview" style={{ backgroundImage: `url("${previewUrl}")` }} />}
 
-        <div className="bg-image-actions">
+        <div className="bg-image-actions" style={{ marginTop: 12 }}>
           <input
             className="form-input"
             type="text"
-            value={''}
-            placeholder="拖入图片或点击浏览…"
+            value={theme.bgImagePath ?? ''}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val) setBgImage(val);
+              else onThemeChange({ bgImagePath: null });
+            }}
+            placeholder={t('settings.bg.placeholder')}
             style={{ flex: 1 }}
-            readOnly
           />
           <button
             className="btn btn--small btn--outline"
@@ -245,15 +356,58 @@ function PersonalizationSection({
               if (path) setBgImage(path);
             }}
           >
-            浏览
+            {t('common.browse')}
           </button>
+          {theme.bgImagePath && (
+            <button
+              className="btn btn--small btn--ghost"
+              onClick={() => {
+                onThemeChange({ bgImagePath: null });
+                setPreviewUrl(null);
+              }}
+            >
+              {t('common.remove')}
+            </button>
+          )}
         </div>
       </div>
 
+      {/* Button mode (only when bgImage is set) */}
+      {theme.bgImagePath && (
+        <div className="settings-card">
+          <h3 className="settings-card-title">{t('settings.btn-mode.title')}</h3>
+          <p className="settings-card-desc">{t('settings.btn-mode.desc')}</p>
+          <div className="theme-switch-group">
+            <button
+              className={`theme-switch-btn${theme.buttonMode === 'white' ? ' theme-switch-btn--active' : ''}`}
+              onClick={() => onThemeChange({ buttonMode: 'white' })}
+            >
+              <span className="theme-switch-btn-icon">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <rect x="2" y="2" width="14" height="14" rx="3" fill="currentColor" />
+                </svg>
+              </span>
+              <span>{t('settings.btn-mode.white')}</span>
+            </button>
+            <button
+              className={`theme-switch-btn${theme.buttonMode === 'transparent' ? ' theme-switch-btn--active' : ''}`}
+              onClick={() => onThemeChange({ buttonMode: 'transparent' })}
+            >
+              <span className="theme-switch-btn-icon">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <rect x="2" y="2" width="14" height="14" rx="3" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                </svg>
+              </span>
+              <span>{t('settings.btn-mode.transparent')}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Accent color */}
       <div className="settings-card">
-        <h3 className="settings-card-title">强调色</h3>
-        <p className="settings-card-desc">设置主按钮、链接和选中状态的颜色（深色模式下无效）</p>
+        <h3 className="settings-card-title">{t('settings.accent.title')}</h3>
+        <p className="settings-card-desc">{t('settings.accent.desc')}</p>
         <div className="color-picker-row">
           <div className="color-picker-swatch">
             <input
@@ -290,6 +444,7 @@ function PersonalizationSection({
           </div>
         </div>
       </div>
+
     </div>
   );
 }

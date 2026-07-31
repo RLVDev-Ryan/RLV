@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useI18n } from '../hooks/useI18n';
 import type { Account } from '../../shared/constants';
 
 interface AccountSelectorProps {
@@ -9,9 +10,14 @@ interface AccountSelectorProps {
   onRemove: (id: string) => void;
 }
 
-const TYPE_LABELS: Record<string, { label: string; color: string }> = {
-  microsoft: { label: '微软账户', color: '#00a4ef' },
-  yggdrasil: { label: '外置登录', color: '#dbb774' },
+const TYPE_COLORS: Record<string, string> = {
+  microsoft: '#00a4ef',
+  yggdrasil: '#dbb774',
+};
+
+const TYPE_I18N_KEY: Record<string, 'account.microsoft' | 'account.yggdrasil'> = {
+  microsoft: 'account.microsoft',
+  yggdrasil: 'account.yggdrasil',
 };
 
 function getInitials(name: string): string {
@@ -19,21 +25,20 @@ function getInitials(name: string): string {
 }
 
 export default function AccountSelector({ current, accounts, onSelect, onAdd, onRemove }: AccountSelectorProps) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Close on click outside
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  const typeMeta = current ? TYPE_LABELS[current.type] : null;
+  const typeI18nKey = current ? TYPE_I18N_KEY[current.type] : null;
+  const typeColor = current ? TYPE_COLORS[current.type] : null;
 
   return (
     <div className="account-selector" ref={ref}>
@@ -52,10 +57,10 @@ export default function AccountSelector({ current, accounts, onSelect, onAdd, on
           )}
         </div>
         <div className="account-trigger-info">
-          <span className="account-trigger-name">{current?.name ?? '未登录'}</span>
-          {typeMeta && (
-            <span className="account-trigger-type" style={{ color: typeMeta.color }}>
-              {typeMeta.label}
+          <span className="account-trigger-name">{current?.name ?? t('account.not_logged_in')}</span>
+          {typeI18nKey && (
+            <span className="account-trigger-type" style={{ color: typeColor! }}>
+              {t(typeI18nKey)}
             </span>
           )}
         </div>
@@ -82,15 +87,15 @@ export default function AccountSelector({ current, accounts, onSelect, onAdd, on
             }}
           >
             <span className="account-dropdown-add-icon">+</span>
-            添加新账户
+            {t('account.add')}
           </button>
 
           {accounts.length > 0 && <div className="account-dropdown-divider" />}
 
           <div className="account-dropdown-list">
             {accounts.map((acc) => {
-              const t = TYPE_LABELS[acc.type];
               const isCurrent = current?.id === acc.id;
+              const aTypeI18n = TYPE_I18N_KEY[acc.type];
               return (
                 <button
                   key={acc.id}
@@ -109,8 +114,8 @@ export default function AccountSelector({ current, accounts, onSelect, onAdd, on
                   </div>
                   <div className="account-dropdown-item-info">
                     <span className="account-dropdown-item-name">{acc.name}</span>
-                    <span className="account-dropdown-item-type" style={{ color: t?.color }}>
-                      {t?.label}
+                    <span className="account-dropdown-item-type" style={{ color: TYPE_COLORS[acc.type] }}>
+                      {t(aTypeI18n)}
                     </span>
                   </div>
                   {isCurrent && (
@@ -133,7 +138,7 @@ export default function AccountSelector({ current, accounts, onSelect, onAdd, on
                         e.stopPropagation();
                         onRemove(acc.id);
                       }}
-                      title="移除账户"
+                      title={t('common.remove')}
                     >
                       <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                         <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />

@@ -1,15 +1,42 @@
 const STORAGE_KEY = 'rlv_theme';
+export type AppLocale = 'zh-CN' | 'zh-TW' | 'ja' | 'ko' | 'en';
+
+import { emitLocaleChange } from './localeBridge';
+
+const LOCALE_FONT: Record<AppLocale, string> = {
+  'zh-CN': 'Noto Serif CJK SC',
+  'zh-TW': 'Noto Serif CJK TC',
+  ja: 'Noto Serif CJK JP',
+  ko: 'Noto Serif CJK KR',
+  en: 'Noto Serif CJK SC',
+};
+
+export type FontZoneMode = 'global' | 'zone';
 
 export interface ThemeSettings {
   mode: 'dark' | 'light';
   accentColor: string;
   bgImagePath: string | null;
+  buttonMode: 'white' | 'transparent';
+  fontFamily: string | null;
+  fontMode: FontZoneMode;
+  fontContent: string | null;
+  fontButtons: string | null;
+  fontLogs: string | null;
+  locale: AppLocale;
 }
 
 const defaultTheme: ThemeSettings = {
   mode: 'light',
   accentColor: '#6b9bc0',
   bgImagePath: null,
+  buttonMode: 'transparent',
+  fontFamily: null,
+  fontMode: 'global',
+  fontContent: null,
+  fontButtons: null,
+  fontLogs: null,
+  locale: 'zh-CN',
 };
 
 let current: ThemeSettings = { ...defaultTheme };
@@ -51,6 +78,11 @@ export function setTheme(settings: Partial<ThemeSettings>): ThemeSettings {
 
   current = { ...current, ...settings };
   save(current);
+
+  // Sync locale to i18n system
+  if (settings.locale && typeof window !== 'undefined') {
+    emitLocaleChange(current.locale);
+  }
 
   // If bgImagePath changed, load the image async; then apply
   if ('bgImagePath' in settings) {
@@ -97,7 +129,36 @@ export function applyTheme(settings: ThemeSettings): void {
     const rootDiv = document.getElementById('root');
     if (rootDiv) rootDiv.style.background = '';
   }
+
+  // Button mode
+  if (settings.buttonMode === 'white') {
+    root.setAttribute('data-btn-mode', 'white');
+  } else {
+    root.removeAttribute('data-btn-mode');
+  }
+
+  // Font — auto-select locale variant when using Noto Serif CJK
+  const localeFont = LOCALE_FONT[settings.locale] || 'Noto Serif CJK SC';
+
+  if (settings.fontMode === 'zone') {
+    const content = settings.fontContent || localeFont;
+    const buttons = settings.fontButtons || localeFont;
+    const logs = settings.fontLogs || localeFont;
+    root.style.setProperty('--font-content', `'${content}', 'Segoe UI', sans-serif`);
+    root.style.setProperty('--font-buttons', `'${buttons}', 'Segoe UI', sans-serif`);
+    root.style.setProperty('--font-logs', `'${logs}', 'SF Mono', 'Fira Code', monospace`);
+    root.style.removeProperty('--app-font');
+  } else {
+    const preferedFont = settings.fontFamily || localeFont;
+    root.style.setProperty('--app-font', `'${preferedFont}', 'Segoe UI', sans-serif`);
+    root.style.removeProperty('--font-content');
+    root.style.removeProperty('--font-buttons');
+    root.style.removeProperty('--font-logs');
+  }
+  root.setAttribute('lang', settings.locale.replace('-', '-'));
 }
+
+
 
 /** Read the background image file via IPC → cache data URL → re-apply. */
 export async function loadBgImage(): Promise<void> {

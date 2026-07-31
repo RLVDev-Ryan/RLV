@@ -46,12 +46,36 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke(IPC_CHANNELS.GAME_DIR_GET_VERSION_PATH, versionId),
   },
 
+  // ── Downloader ──
+  download: {
+    listVersions: (): Promise<{ success: boolean; versions: any[] }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.DOWNLOAD_LIST_VERSIONS),
+    start: (versionId: string): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.DOWNLOAD_START, versionId),
+    onProgress: (callback: (progress: any) => void) => {
+      const handler = (_event: any, progress: any) => callback(progress);
+      ipcRenderer.on(IPC_CHANNELS.DOWNLOAD_PROGRESS, handler);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.DOWNLOAD_PROGRESS, handler);
+    },
+  },
+
   // ── Background image ──
   openBgImage: (): Promise<string | null> => ipcRenderer.invoke(IPC_CHANNELS.BG_IMAGE_OPEN),
   readBgImage: (filePath: string): Promise<string | null> => ipcRenderer.invoke(IPC_CHANNELS.BG_IMAGE_READ, filePath),
 
   // ── Clipboard ──
   copyToClipboard: (text: string) => ipcRenderer.send(IPC_CHANNELS.CLIPBOARD_WRITE, text),
+
+  // ── Auto updater ──
+  updater: {
+    onStatus: (callback: (status: any) => void) => {
+      const handler = (_event: any, status: any) => callback(status);
+      ipcRenderer.on(IPC_CHANNELS.UPDATE_STATUS, handler);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.UPDATE_STATUS, handler);
+    },
+    download: (): Promise<{ success: boolean }> => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_DOWNLOAD),
+    install: (): Promise<{ success: boolean }> => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_INSTALL),
+  },
 
   // ── Terracotta multiplayer ──
   terracotta: {

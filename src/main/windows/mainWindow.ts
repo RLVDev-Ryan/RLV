@@ -1,5 +1,6 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'path';
+import { exec } from 'child_process';
 import { WINDOW_SIZE, APP_FULL_NAME } from '../../shared/constants';
 
 export function createMainWindow(): BrowserWindow {
@@ -26,6 +27,14 @@ export function createMainWindow(): BrowserWindow {
   });
 
   win.setTitle(APP_FULL_NAME);
+
+  // Print Screen 键被 Chromium 吞掉，手动触发 Windows 截图工具
+  win.webContents.on('before-input-event', (event, input) => {
+    if (input.key === 'PrintScreen' && process.platform === 'win32') {
+      event.preventDefault();
+      exec('explorer.exe ms-screenclip:');
+    }
+  });
 
   if (isDev) {
     win.loadURL('http://localhost:5173');

@@ -1,4 +1,4 @@
-appId: com.ryan.rlauncher-vibe
+appId: com.ryan.ryans-launcher-vibe
 productName: "Ryan's Launcher Vibe"
 copyright: 'Copyright © 2026 Ryan'
 
@@ -32,5 +32,10 @@ extraResources:
 
 extraMetadata:
   main: dist/main/src/main/index.js
+
+publish:
+  provider: github
+  owner: RLVDev-Ryan
+  repo: RLV
 
 # macOS and Linux configs to be added later

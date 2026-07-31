@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useI18n } from '../hooks/useI18n';
 import { multiplayerStore } from '../stores/multiplayerStore';
 
 const STORAGE_KEY = 'rlv_terracotta_disclaimer';
 
 export default function MultiplayerPage() {
+  const { t } = useI18n();
   const [showDialog, setShowDialog] = useState(false);
   const [dontShowAgain, setDontShowAgain] = useState(false);
   const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
@@ -65,12 +67,12 @@ export default function MultiplayerPage() {
         multiplayerStore.connect('host', result.inviteCode);
         window.electronAPI.copyToClipboard(result.inviteCode);
         setCopied(true);
-        setMessage(`检测到端口 ${port || '默认'} 的房间，邀请码已复制到剪贴板`);
+        setMessage(t('multiplayer.room_detected', { port: port || '默认' }));
       } else {
-        setMessage('创建房间失败');
+        setMessage(t('multiplayer.connect_fail'));
       }
     } catch {
-      setMessage('调用失败');
+      setMessage(t('multiplayer.call_fail'));
     }
     setLoading(false);
   }, [createPort]);
@@ -83,12 +85,12 @@ export default function MultiplayerPage() {
       const result = await window.electronAPI.terracotta.join(joinCode.trim());
       if (result.success) {
         multiplayerStore.connect('guest', joinCode.trim());
-        setMessage('已连接房间。请启动 Minecraft，然后在多人游戏中搜索局域网房间');
+        setMessage(t('multiplayer.connected_success'));
       } else {
-        setMessage('加入房间失败，请检查邀请码');
+        setMessage(t('multiplayer.join_fail'));
       }
     } catch {
-      setMessage('连接失败');
+      setMessage(t('multiplayer.join_fail'));
     }
     setLoading(false);
   }, [joinCode]);
@@ -112,9 +114,9 @@ export default function MultiplayerPage() {
       const games = result.games || [];
       setLanGames(games);
       if (games.length === 0) {
-        setMessage('未发现局域网房间。请先启动游戏，然后在游戏内开放局域网联机');
+        setMessage(t('multiplayer.no_games_found'));
       } else {
-        setMessage(`发现 ${games.length} 个房间`);
+        setMessage(t('multiplayer.games_found', { count: games.length }));
       }
     } catch {}
     setScanning(false);
@@ -133,18 +135,16 @@ export default function MultiplayerPage() {
                   <circle cx="20" cy="20" r="10" stroke="var(--accent)" strokeWidth="2" />
                 </svg>
               </div>
-              <p className="terracotta-dialog-text">陶瓦联机是第三方开源自由软件…</p>
-              <p className="terracotta-dialog-text">陶瓦联机使用P2P技术…</p>
-              <p className="terracotta-dialog-text">
-                在多人联机全过程中，您必须严格遵守您所在国家与地区的全部法律法规。
-              </p>
+              <p className="terracotta-dialog-text">{t('multiplayer.disclaimer.text1')}</p>
+              <p className="terracotta-dialog-text">{t('multiplayer.disclaimer.text2')}</p>
+              <p className="terracotta-dialog-text">{t('multiplayer.disclaimer.text3')}</p>
               <label className="terracotta-dialog-checkbox">
                 <input type="checkbox" checked={dontShowAgain} onChange={() => setDontShowAgain(!dontShowAgain)} />
-                <span className="terracotta-dialog-checkbox-text">下次打开不再弹出</span>
+                <span className="terracotta-dialog-checkbox-text">{t('multiplayer.disclaimer.checkbox')}</span>
               </label>
             </div>
             <button className="terracotta-dialog-confirm" onClick={handleDisclaimerConfirm}>
-              确定
+              {t('common.confirm')}
             </button>
           </div>
         </div>
@@ -162,23 +162,23 @@ export default function MultiplayerPage() {
                 </svg>
               </div>
               <div>
-                <h2 className="multiplayer-title">局域网联机</h2>
-                <span className="multiplayer-subtitle">基于 P2P 虚拟局域网</span>
+                <h2 className="multiplayer-title">{t('multiplayer.title')}</h2>
+                <span className="multiplayer-subtitle">{t('multiplayer.subtitle')}</span>
               </div>
             </div>
             <div className="multiplayer-status">
               <span className={`multiplayer-status-dot ${connected ? 'multiplayer-status-dot--active' : ''}`} />
-              <span className="multiplayer-status-text">{connected ? '已连接' : '未连接'}</span>
+              <span className="multiplayer-status-text">{connected ? t('multiplayer.connected') : t('multiplayer.disconnected')}</span>
             </div>
           </div>
 
           <div className="multiplayer-bar">
             <span className="multiplayer-bar-text">
-              {connected ? (mode === 'host' ? '联机房间已创建' : '已加入房间') : '未连接至任何房间'}
+              {connected ? (mode === 'host' ? t('multiplayer.room_created') : t('multiplayer.room_joined')) : t('multiplayer.not_connected')}
             </span>
             {connected && (
               <button className="multiplayer-bar-action" onClick={handleDisconnect}>
-                关闭房间
+                {t('multiplayer.close_room')}
               </button>
             )}
           </div>
@@ -192,7 +192,6 @@ export default function MultiplayerPage() {
                     cursor: 'default',
                     borderBottomLeftRadius: 0,
                     borderBottomRightRadius: 0,
-                    borderBottom: 'none',
                   }}
                 >
                   <span className="multiplayer-action-btn-icon">
@@ -210,12 +209,12 @@ export default function MultiplayerPage() {
                       <path d="M16 11v10M11 16h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                     </svg>
                   </span>
-                  <span className="multiplayer-action-btn-label">创建房间</span>
-                  <span className="multiplayer-action-btn-desc">创建联机房间并生成邀请码</span>
+                  <span className="multiplayer-action-btn-label">{t('multiplayer.create_room')}</span>
+                  <span className="multiplayer-action-btn-desc">{t('multiplayer.create_desc')}</span>
                 </div>
                 <div className="multiplayer-create-port">
                   <div className="multiplayer-create-port-row">
-                    <span className="multiplayer-create-port-label">游戏端口号</span>
+                    <span className="multiplayer-create-port-label">{t('multiplayer.port_label')}</span>
                     <input
                       className="form-input"
                       type="number"
@@ -232,7 +231,7 @@ export default function MultiplayerPage() {
                     onClick={handleCreateRoom}
                     disabled={loading}
                   >
-                    {loading ? '扫描中…' : '创建房间'}
+                    {loading ? t('multiplayer.scanning') : t('multiplayer.create_room')}
                   </button>
                 </div>
               </div>
@@ -243,15 +242,15 @@ export default function MultiplayerPage() {
                     <circle cx="16" cy="16" r="10" stroke="currentColor" strokeWidth="1.8" fill="none" />
                   </svg>
                 </span>
-                <span className="multiplayer-action-btn-label">加入房间</span>
-                <span className="multiplayer-action-btn-desc">输入邀请码加入已有房间</span>
+                <span className="multiplayer-action-btn-label">{t('multiplayer.join_room')}</span>
+                <span className="multiplayer-action-btn-desc">{t('multiplayer.join_desc')}</span>
               </button>
             </div>
           )}
 
           {mode === 'host' && connected && (
             <div className="multiplayer-room">
-              <div className="multiplayer-room-label">邀请码</div>
+              <div className="multiplayer-room-label">{t('multiplayer.invite_code')}</div>
               <div className="multiplayer-room-code">
                 <span className="multiplayer-room-code-text">{inviteCode?.split('-')[0] ?? ''}</span>
                 <button
@@ -260,27 +259,27 @@ export default function MultiplayerPage() {
                     if (inviteCode) {
                       window.electronAPI?.copyToClipboard(inviteCode);
                       setCopied(true);
-                      setMessage('邀请码已复制到剪贴板');
+                      setMessage(t('multiplayer.copied'));
                     }
                   }}
                 >
-                  {copied ? '已复制' : '复制'}
+                  {copied ? t('multiplayer.copied') : t('multiplayer.copy')}
                 </button>
               </div>
-              <p className="multiplayer-room-hint">将此邀请码发送给其他玩家，对方粘贴即可加入</p>
+              <p className="multiplayer-room-hint">{t('multiplayer.invite_hint')}</p>
             </div>
           )}
 
           {mode === 'guest' && !connected && (
             <div className="multiplayer-join">
               <div className="form-group">
-                <label className="form-label">邀请码</label>
+                <label className="form-label">{t('multiplayer.invite_code')}</label>
                 <input
                   className="form-input"
                   type="text"
                   value={joinCode}
                   onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                  placeholder="粘贴邀请码"
+                  placeholder={t('multiplayer.join_hint')}
                   maxLength={24}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') handleJoinRoom();
@@ -293,14 +292,14 @@ export default function MultiplayerPage() {
                   onClick={() => setMode('idle')}
                   style={{ background: '#9BB8AC', color: '#fff' }}
                 >
-                  返回
+                  {t('multiplayer.back')}
                 </button>
                 <button
                   className="btn btn--primary"
                   onClick={handleJoinRoom}
                   disabled={loading || joinCode.trim().length < 10}
                 >
-                  {loading ? '连接中…' : '加入房间'}
+                  {loading ? t('multiplayer.connecting') : t('multiplayer.join')}
                 </button>
               </div>
             </div>

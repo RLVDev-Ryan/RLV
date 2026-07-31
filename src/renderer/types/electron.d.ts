@@ -27,6 +27,18 @@ export interface GameDirsAPI {
   getVersionPath: (versionId: string) => Promise<string>;
 }
 
+export interface UpdateAPI {
+  onStatus: (callback: (status: any) => void) => () => void;
+  download: () => Promise<{ success: boolean }>;
+  install: () => Promise<{ success: boolean }>;
+}
+
+export interface DownloadAPI {
+  listVersions: () => Promise<{ success: boolean; versions: any[] }>;
+  start: (versionId: string) => Promise<{ success: boolean; error?: string }>;
+  onProgress: (callback: (progress: any) => void) => () => void;
+}
+
 export interface ElectronAPI {
   getAppVersion: () => Promise<string>;
   getPlatform: () => Promise<NodeJS.Platform>;
@@ -42,6 +54,8 @@ export interface ElectronAPI {
   accounts: AccountAPI;
   terracotta: TerracottaAPI;
   gameDirs: GameDirsAPI;
+  download: DownloadAPI;
+  updater: UpdateAPI;
 }
 
 declare global {

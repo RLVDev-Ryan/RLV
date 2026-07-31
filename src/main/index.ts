@@ -7,6 +7,8 @@ import { listAccounts, getCurrentAccount, setCurrentAccount, addAccount, removeA
 import { authenticateMicrosoft } from './accounts/microsoftAuth';
 import { authenticateYggdrasil } from './accounts/yggdrasilAuth';
 import { getDefaultGameDir, getAllGameDirs, addGameDir, removeGameDir, getVersionDir } from './gameDirs/gameDirsStore';
+import { downloadVersion, fetchVersionManifest } from './downloader/downloaderManager';
+import { initAutoUpdater, downloadUpdate, quitAndInstall, setUpdaterWindow } from './updater/updater';
 import {
   getEasyTierPath,
   getLocalIP,
@@ -21,6 +23,10 @@ import {
 } from './terracotta/terracottaManager';
 
 let mainWindow: BrowserWindow | null = null;
+
+// Disable hardware acceleration — fixes Win+Shift+S screenshot not working
+// (Electron GPU process can interfere with Windows screenshot compositor)
+app.disableHardwareAcceleration();
 
 function registerIpcHandlers(): void {
   // ── App lifecycle ──
@@ -73,6 +79,30 @@ function registerIpcHandlers(): void {
       return `data:${mime[ext] || 'image/png'};base64,${buffer.toString('base64')}`;
     } catch {
       return null;
+    }
+  });
+
+  // ── Downloader ──
+  ipcMain.handle(IPC_CHANNELS.DOWNLOAD_LIST_VERSIONS, async () => {
+    try {
+      const versions = await fetchVersionManifest();
+      return { success: true, versions };
+    } catch {
+      return { success: false, versions: [] };
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.DOWNLOAD_START, async (_event, versionId: string) => {
+    try {
+      const gameDir = getDefaultGameDir();
+      await downloadVersion(versionId, gameDir, (progress) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send(IPC_CHANNELS.DOWNLOAD_PROGRESS, progress);
+        }
+      });
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : String(err) };
     }
   });
 
@@ -137,6 +167,16 @@ function registerIpcHandlers(): void {
     return removeAccount(id);
   });
 
+  // ── Auto updater ──
+  ipcMain.handle(IPC_CHANNELS.UPDATE_DOWNLOAD, () => {
+    downloadUpdate();
+    return { success: true };
+  });
+  ipcMain.handle(IPC_CHANNELS.UPDATE_INSTALL, () => {
+    quitAndInstall();
+    return { success: true };
+  });
+
   // ── EasyTier P2P + LAN scan ──
   ipcMain.handle(IPC_CHANNELS.TERRACOTTA_START, async (_event, port?: number) => {
     // Step 1: scan specific port for Minecraft room
@@ -186,6 +226,8 @@ app.whenReady().then(() => {
   registerIpcHandlers();
   mainWindow = createMainWindow();
   setMainWindow(mainWindow);
+  setUpdaterWindow(mainWindow);
+  initAutoUpdater();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

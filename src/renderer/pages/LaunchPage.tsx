@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useI18n } from '../hooks/useI18n';
 import { INSTALLED_VERSIONS } from '../../shared/constants';
 import type { Account, MinecraftVersion } from '../../shared/constants';
 import AccountSelector from '../components/AccountSelector';
@@ -8,6 +9,8 @@ import VersionCard from '../components/VersionCard';
 import VersionDetail from '../components/VersionDetail';
 
 export default function LaunchPage() {
+  const { t } = useI18n();
+
   // ── Account state ──
   const [currentAccount, setCurrentAccount] = useState<Account | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -119,20 +122,20 @@ export default function LaunchPage() {
         <div className="launch-actions-left">
           <VersionSelector versions={versions} selected={selectedVersion} onSelect={setSelectedVersion} />
           <button className="btn btn--primary btn--launch" disabled={!selectedVersion} onClick={handleLaunch}>
-            启动游戏
+            {t('launch_page.launch')}
           </button>
         </div>
         <div className="launch-actions-right">
           <button className="btn btn--outline btn--small" onClick={handleAddFolder}>
-            添加已有文件夹
+            {t('launch_page.add_existing')}
           </button>
         </div>
       </div>
 
       {/* ── Row 3: Section title ── */}
       <div className="launch-row launch-row--section-title">
-        <h2 className="page-title">已安装版本</h2>
-        {!hasVersions && <p className="launch-empty-hint">暂无已安装版本，请添加版本文件夹</p>}
+        <h2 className="page-title">{t('launch.installed')}</h2>
+        {!hasVersions && <p className="launch-empty-hint">{t('launch.no_versions')}</p>}
       </div>
 
       {/* ── Row 4+: Version cards ── */}

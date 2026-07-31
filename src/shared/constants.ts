@@ -7,6 +7,12 @@ export const IPC_CHANNELS = {
   // App lifecycle
   GET_APP_VERSION: 'app:get-version',
 
+  // Auto updater
+  UPDATE_STATUS: 'update:status',
+  UPDATE_DOWNLOAD: 'update:download',
+  UPDATE_INSTALL: 'update:install',
+
+
   // Platform info
   GET_PLATFORM: 'app:get-platform',
 
@@ -30,6 +36,11 @@ export const IPC_CHANNELS = {
   TERRACOTTA_GET_ROOM: 'terracotta:get-room',
   TERRACOTTA_SCAN: 'terracotta:scan',
   TERRACOTTA_PERMISSION_ERROR: 'terracotta:permission-error',
+
+  // Downloader
+  DOWNLOAD_LIST_VERSIONS: 'download:list-versions',
+  DOWNLOAD_START: 'download:start',
+  DOWNLOAD_PROGRESS: 'download:progress',
 
   // Background image
   BG_IMAGE_OPEN: 'bg:open-file',

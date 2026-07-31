@@ -4,3 +4,16 @@ release/
 *.log
 .DS_Store
 Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Environment / secrets
+.env
+.env.local
+*.local
+
+# TS build cache
+*.tsbuildinfo
