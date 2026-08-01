@@ -1,28 +1,9 @@
-import { app } from 'electron';
 import path from 'path';
 import fs from 'fs';
-import https from 'https';
-import http from 'http';
-import { URL } from 'url';
+import { downloadFile } from './downloadFile';
+import type { DownloadProgress, VersionManifestEntry } from '../../shared/constants';
 
 const MANIFEST_URL = 'https://piston-meta.mojang.com/mc/game/version_manifest_v2.json';
-const ASSETS_BASE = 'https://resources.download.minecraft.net';
-
-export interface VersionManifestEntry {
-  id: string;
-  type: 'release' | 'snapshot' | 'old_beta' | 'old_alpha';
-  url: string;
-  time: string;
-  releaseTime: string;
-}
-
-export interface DownloadProgress {
-  versionId: string;
-  stage: 'manifest' | 'client' | 'assets' | 'extract' | 'done' | 'error';
-  percent: number;
-  speed?: string;
-  error?: string;
-}
 
 type ProgressCallback = (progress: DownloadProgress) => void;
 
@@ -31,6 +12,9 @@ type ProgressCallback = (progress: DownloadProgress) => void;
  */
 export async function fetchVersionManifest(): Promise<VersionManifestEntry[]> {
   const response = await fetch(MANIFEST_URL);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch version manifest: HTTP ${response.status}`);
+  }
   const data = (await response.json()) as { versions: VersionManifestEntry[] };
   return data.versions;
 }
@@ -55,6 +39,9 @@ export async function downloadVersion(versionId: string, gameDir: string, onProg
     // Step 2: fetch version JSON
     onProgress({ versionId, stage: 'manifest', percent: 20 });
     const versionResp = await fetch(entry.url);
+    if (!versionResp.ok) {
+      throw new Error(`Failed to fetch version JSON: HTTP ${versionResp.status}`);
+    }
     const versionData = await versionResp.json();
     const versionJson = versionData as {
       downloads?: { client?: { url?: string; size?: number } };
@@ -85,52 +72,3 @@ export async function downloadVersion(versionId: string, gameDir: string, onProg
   }
 }
 
-/**
- * Download a file with progress tracking.
- */
-function downloadFile(url: string, dest: string, onProgress: (percent: number) => void): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const parsedUrl = new URL(url);
-    const mod = parsedUrl.protocol === 'https:' ? https : http;
-
-    // Write to a temp file first
-    const tmpPath = dest + '.tmp';
-    const file = fs.createWriteStream(tmpPath);
-
-    mod
-      .get(url, (response) => {
-        const total = parseInt(response.headers['content-length'] || '0', 10);
-        let downloaded = 0;
-
-        response.on('data', (chunk: Buffer) => {
-          downloaded += chunk.length;
-          file.write(chunk);
-          if (total > 0) {
-            onProgress(Math.round((downloaded / total) * 100));
-          }
-        });
-
-        response.on('end', () => {
-          file.end();
-          // Rename temp to final
-          fs.renameSync(tmpPath, dest);
-          resolve();
-        });
-
-        response.on('error', (err) => {
-          file.close();
-          try {
-            fs.unlinkSync(tmpPath);
-          } catch {}
-          reject(err);
-        });
-      })
-      .on('error', (err) => {
-        file.close();
-        try {
-          fs.unlinkSync(tmpPath);
-        } catch {}
-        reject(err);
-      });
-  });
-}

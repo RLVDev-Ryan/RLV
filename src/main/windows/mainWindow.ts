@@ -22,6 +22,8 @@ export function createMainWindow(): BrowserWindow {
       preload: path.join(__dirname, '../../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      // Kept false: the preload requires the local shared/constants module,
+      // which fails to load under the sandboxed preload require() polyfill.
       sandbox: false,
     },
   });

@@ -5,6 +5,9 @@ import type { Account, AccountStore } from '../../shared/constants';
 
 const ACCOUNTS_FILE = path.join(app.getPath('appData'), 'rlv', 'accounts.json');
 
+/** In-memory cache so repeated IPC reads don't hit the disk every time. */
+let cache: AccountStore | null = null;
+
 function ensureDir(): void {
   const dir = path.dirname(ACCOUNTS_FILE);
   if (!fs.existsSync(dir)) {
@@ -13,21 +16,28 @@ function ensureDir(): void {
 }
 
 export function loadAccounts(): AccountStore {
+  if (cache) return cache;
   try {
     ensureDir();
     if (fs.existsSync(ACCOUNTS_FILE)) {
       const raw = fs.readFileSync(ACCOUNTS_FILE, 'utf-8');
-      return JSON.parse(raw) as AccountStore;
+      cache = JSON.parse(raw) as AccountStore;
+      return cache;
     }
   } catch {
     console.error('Failed to load accounts, starting fresh');
   }
-  return { accounts: [] };
+  cache = { accounts: [] };
+  return cache;
 }
 
 function saveAccounts(store: AccountStore): void {
+  cache = store;
   ensureDir();
-  fs.writeFileSync(ACCOUNTS_FILE, JSON.stringify(store, null, 2), 'utf-8');
+  // Atomic write: write to a temp file then rename to avoid corruption on crash
+  const tmp = ACCOUNTS_FILE + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(store, null, 2), 'utf-8');
+  fs.renameSync(tmp, ACCOUNTS_FILE);
 }
 
 /** List all saved accounts */

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useI18n } from '../hooks/useI18n';
-import { INSTALLED_VERSIONS } from '../../shared/constants';
 import type { Account, MinecraftVersion } from '../../shared/constants';
+import { loadLaunchSettings } from '../../shared/utils';
 import AccountSelector from '../components/AccountSelector';
 import AddAccountDialog from '../components/AddAccountDialog';
 import VersionSelector from '../components/VersionSelector';
@@ -17,7 +17,7 @@ export default function LaunchPage() {
   const [showAddAccount, setShowAddAccount] = useState(false);
 
   // ── Version state ──
-  const [versions] = useState<MinecraftVersion[]>(INSTALLED_VERSIONS);
+  const [versions, setVersions] = useState<MinecraftVersion[]>([]);
   const [selectedVersion, setSelectedVersion] = useState<MinecraftVersion | null>(null);
   const [detailVersion, setDetailVersion] = useState<MinecraftVersion | null>(null);
 
@@ -25,9 +25,10 @@ export default function LaunchPage() {
   const [launching, setLaunching] = useState(false);
   const [launchProgress, setLaunchProgress] = useState<{ stage: string; percent: number; message?: string; error?: string } | null>(null);
 
-  // Load accounts on mount
+  // Load accounts + installed versions on mount
   useEffect(() => {
     loadAccounts();
+    loadVersions();
   }, []);
 
   // Subscribe to launch progress
@@ -47,6 +48,21 @@ export default function LaunchPage() {
     setAccounts(list);
     const current = await window.electronAPI.accounts.getCurrent();
     setCurrentAccount(current);
+  }, []);
+
+  // Scan all configured game directories for installed versions.
+  // Replaces the old hardcoded INSTALLED_VERSIONS list.
+  const loadVersions = useCallback(async () => {
+    if (!window.electronAPI) return;
+    const list = await window.electronAPI.gameDirs.scanVersions();
+    setVersions(
+      list.map((v) => ({
+        id: v.id,
+        releaseDate: v.releaseTime.slice(0, 10),
+        type: 'release' as const,
+        loader: v.loader,
+      })),
+    );
   }, []);
 
   // ── Account handlers ──
@@ -102,9 +118,15 @@ export default function LaunchPage() {
     setLaunching(true);
     setLaunchProgress({ stage: 'start', percent: 0, message: '准备启动…' });
     try {
+      const settings = loadLaunchSettings();
       const result = await window.electronAPI.launch.game(
         selectedVersion.id,
         currentAccount?.name ?? 'Player',
+        {
+          memoryMB: settings.memoryMB,
+          jvmArgs: settings.jvmArgs,
+          gameArgs: settings.gameArgs,
+        },
       );
       if (!result.success && result.error) {
         setLaunchProgress({ stage: 'error', percent: 0, error: result.error });
@@ -118,9 +140,10 @@ export default function LaunchPage() {
 
   const handleAddFolder = useCallback(async () => {
     if (window.electronAPI) {
-      await window.electronAPI.openDirectory();
+      await window.electronAPI.gameDirs.add();
+      loadVersions();
     }
-  }, []);
+  }, [loadVersions]);
 
   const handleCardClick = useCallback((v: MinecraftVersion) => {
     setDetailVersion(v);

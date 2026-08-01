@@ -1,4 +1,12 @@
-import type { Account } from '../../shared/constants';
+import type {
+  Account,
+  DownloadProgress,
+  InstalledVersionInfo,
+  LanGame,
+  LaunchProgress,
+  UpdateStatus,
+  VersionManifestEntry,
+} from '../../shared/constants';
 
 export interface AccountAPI {
   list: () => Promise<Account[]>;
@@ -8,6 +16,7 @@ export interface AccountAPI {
   addYggdrasil: (params: { serverUrl: string; username: string; password: string }) => Promise<Account | null>;
   addOffline: (username: string) => Promise<Account | null>;
   remove: (id: string) => Promise<boolean>;
+  onDeviceCode: (callback: (code: string) => void) => () => void;
 }
 
 export interface TerracottaAPI {
@@ -16,8 +25,7 @@ export interface TerracottaAPI {
   ) => Promise<{ success: boolean; inviteCode: string | null; noGames?: boolean; gameCount?: number }>;
   join: (inviteCode: string) => Promise<{ success: boolean }>;
   stop: () => Promise<{ success: boolean }>;
-  getRoom: () => Promise<{ inviteCode: string } | null>;
-  scan: () => Promise<{ games: any[] }>;
+  scan: () => Promise<{ games: LanGame[] }>;
 }
 
 export interface GameDirsAPI {
@@ -26,23 +34,33 @@ export interface GameDirsAPI {
   add: () => Promise<string[] | null>;
   remove: (dir: string) => Promise<string[]>;
   getVersionPath: (versionId: string) => Promise<string>;
+  scanVersions: () => Promise<InstalledVersionInfo[]>;
 }
 
 export interface LaunchAPI {
-  game: (versionId: string, playerName: string) => Promise<{ success: boolean; error?: string }>;
-  onProgress: (callback: (progress: any) => void) => () => void;
+  game: (
+    versionId: string,
+    playerName: string,
+    options?: { memoryMB?: number; jvmArgs?: string[]; gameArgs?: string[] },
+  ) => Promise<{ success: boolean; error?: string }>;
+  stop: () => Promise<{ success: boolean }>;
+  exportScript: (
+    versionId: string,
+    options?: { memoryMB?: number; jvmArgs?: string[]; gameArgs?: string[] },
+  ) => Promise<{ success: boolean; path?: string; error?: string }>;
+  onProgress: (callback: (progress: LaunchProgress) => void) => () => void;
 }
 
 export interface UpdateAPI {
-  onStatus: (callback: (status: any) => void) => () => void;
+  onStatus: (callback: (status: UpdateStatus) => void) => () => void;
   download: () => Promise<{ success: boolean }>;
   install: () => Promise<{ success: boolean }>;
 }
 
 export interface DownloadAPI {
-  listVersions: () => Promise<{ success: boolean; versions: any[] }>;
+  listVersions: () => Promise<{ success: boolean; versions: VersionManifestEntry[] }>;
   start: (versionId: string) => Promise<{ success: boolean; error?: string }>;
-  onProgress: (callback: (progress: any) => void) => () => void;
+  onProgress: (callback: (progress: DownloadProgress) => void) => () => void;
 }
 
 export interface ElectronAPI {
@@ -50,8 +68,8 @@ export interface ElectronAPI {
   getPlatform: () => Promise<NodeJS.Platform>;
   showAlert: (message: string) => Promise<void>;
   openDirectory: () => Promise<string | null>;
+  openPath: (targetPath: string) => Promise<{ success: boolean; error?: string }>;
   openBgImage: () => Promise<string | null>;
-  readBgImage: (filePath: string) => Promise<string | null>;
   readBgImage: (filePath: string) => Promise<string | null>;
   copyToClipboard: (text: string) => void;
   windowMinimize: () => void;

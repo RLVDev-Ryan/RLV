@@ -5,7 +5,8 @@ import LaunchPage from './pages/LaunchPage';
 import DownloadPage from './pages/DownloadPage';
 import MultiplayerPage from './pages/MultiplayerPage';
 import SettingsPage from './pages/SettingsPage';
-import type { NavKey } from '../shared/constants';
+import type { NavKey, UpdateStatus } from '../shared/constants';
+import { useI18n } from './hooks/useI18n';
 
 const pageMap: Record<NavKey, React.FC> = {
   launch: LaunchPage,
@@ -13,13 +14,6 @@ const pageMap: Record<NavKey, React.FC> = {
   multiplayer: MultiplayerPage,
   settings: SettingsPage,
 };
-
-interface UpdateStatus {
-  status: string;
-  version?: string;
-  percent?: number;
-  message?: string;
-}
 
 export default function App() {
   const [activeNav, setActiveNav] = useState<NavKey>('launch');
@@ -53,31 +47,32 @@ export default function App() {
 }
 
 function UpdateBanner({ update }: { update: UpdateStatus }) {
+  const { t } = useI18n();
   const { status } = update;
   let text = '';
   let action: React.ReactNode = null;
 
-  if (status === 'checking') text = '正在检查更新…';
+  if (status === 'checking') text = t('update.checking');
   else if (status === 'available') {
-    text = `发现新版本 v${update.version}，点击下载更新`;
+    text = t('update.available', { version: update.version ?? '' });
     action = (
       <button className="btn btn--small btn--primary" onClick={() => window.electronAPI?.updater.download()}>
-        下载
+        {t('update.download')}
       </button>
     );
   } else if (status === 'downloading') {
-    text = `正在下载更新… ${update.percent ?? 0}%`;
+    text = t('update.downloading', { percent: update.percent ?? 0 });
   } else if (status === 'downloaded') {
-    text = `新版本 v${update.version} 已就绪`;
+    text = t('update.downloaded', { version: update.version ?? '' });
     action = (
       <button className="btn btn--small btn--primary" onClick={() => window.electronAPI?.updater.install()}>
-        立即重启安装
+        {t('update.install')}
       </button>
     );
   } else if (status === 'error') {
-    text = `检查更新失败：${update.message ?? '未知错误'}`;
+    text = t('update.error', { message: update.message ?? t('update.unknown_error') });
   } else if (status === 'not-available') {
-    text = '已是最新版本';
+    text = t('update.not_available');
   }
 
   return (

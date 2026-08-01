@@ -17,3 +17,6 @@ Thumbs.db
 
 # TS build cache
 *.tsbuildinfo
+
+# ESLint cache
+.eslintcache

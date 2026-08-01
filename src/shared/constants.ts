@@ -9,7 +9,9 @@ export const IPC_CHANNELS = {
 
   // Game launch
   LAUNCH_GAME: 'launch:game',
+  LAUNCH_STOP: 'launch:stop',
   LAUNCH_PROGRESS: 'launch:progress',
+  EXPORT_LAUNCH_SCRIPT: 'launch:export-script',
 
   // Auto updater
   UPDATE_STATUS: 'update:status',
@@ -32,12 +34,13 @@ export const IPC_CHANNELS = {
   // Clipboard
   CLIPBOARD_WRITE: 'clipboard:write',
 
+  // Microsoft device-code login
+  MS_DEVICE_CODE: 'ms:device-code',
+
   // Terracotta multiplayer
   TERRACOTTA_START: 'terracotta:start',
   TERRACOTTA_JOIN: 'terracotta:join',
   TERRACOTTA_STOP: 'terracotta:stop',
-  TERRACOTTA_GET_PATH: 'terracotta:get-path',
-  TERRACOTTA_GET_ROOM: 'terracotta:get-room',
   TERRACOTTA_SCAN: 'terracotta:scan',
   TERRACOTTA_PERMISSION_ERROR: 'terracotta:permission-error',
 
@@ -45,6 +48,9 @@ export const IPC_CHANNELS = {
   DOWNLOAD_LIST_VERSIONS: 'download:list-versions',
   DOWNLOAD_START: 'download:start',
   DOWNLOAD_PROGRESS: 'download:progress',
+
+  // Shell
+  SHELL_OPEN_PATH: 'shell:open-path',
 
   // Background image
   BG_IMAGE_OPEN: 'bg:open-file',
@@ -56,6 +62,7 @@ export const IPC_CHANNELS = {
   GAME_DIR_ADD: 'game-dir:add',
   GAME_DIR_REMOVE: 'game-dir:remove',
   GAME_DIR_GET_VERSION_PATH: 'game-dir:get-version-path',
+  GAME_DIR_SCAN_VERSIONS: 'game-dir:scan-versions',
 
   // Accounts
   ACCOUNTS_LIST: 'accounts:list',
@@ -77,10 +84,10 @@ export const WINDOW_SIZE = {
 
 /** Navigation pages */
 export const NAV_ITEMS = [
-  { key: 'launch', label: '启动', icon: '🚀' },
-  { key: 'download', label: '下载', icon: '📥' },
-  { key: 'multiplayer', label: '联机', icon: '🌐' },
-  { key: 'settings', label: '设置', icon: '⚙️' },
+  { key: 'launch', label: '启动' },
+  { key: 'download', label: '下载' },
+  { key: 'multiplayer', label: '联机' },
+  { key: 'settings', label: '设置' },
 ] as const;
 
 export type NavKey = (typeof NAV_ITEMS)[number]['key'];
@@ -150,6 +157,58 @@ export const INSTALLED_VERSIONS: MinecraftVersion[] = [
 /** Path to vanilla grass block icon */
 export const VANILLA_ICON = 'assets/icons/grass.png';
 export const VANILLA_CARD_BG = 'rgba(124, 184, 124, 0.08)';
+
+/* ── Shared IPC payload types (single source of truth for main/preload/renderer) ── */
+
+export type LaunchStage = 'java' | 'resolve' | 'libraries' | 'assets' | 'natives' | 'launch' | 'done' | 'error';
+
+export interface LaunchProgress {
+  stage: LaunchStage;
+  percent: number;
+  message?: string;
+  error?: string;
+}
+
+export type DownloadStage = 'manifest' | 'client' | 'assets' | 'extract' | 'done' | 'error';
+
+export interface DownloadProgress {
+  versionId: string;
+  stage: DownloadStage;
+  percent: number;
+  speed?: string;
+  error?: string;
+}
+
+/** A single entry from the Mojang version manifest. */
+export interface VersionManifestEntry {
+  id: string;
+  type: 'release' | 'snapshot' | 'old_beta' | 'old_alpha';
+  url: string;
+  time: string;
+  releaseTime: string;
+}
+
+export interface UpdateStatus {
+  status: string;
+  version?: string;
+  percent?: number;
+  message?: string;
+}
+
+export interface LanGame {
+  motd: string;
+  host: string;
+  port: number;
+  worldName: string;
+}
+
+/** A version found on disk by scanning the configured game directories. */
+export interface InstalledVersionInfo {
+  id: string;
+  releaseTime: string;
+  gameDir: string;
+  loader: ModLoader | null;
+}
 
 export const LOADER_META: Record<ModLoader, { label: string; iconPath: string; color: string; cardBg: string }> = {
   fabric: {

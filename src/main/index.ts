@@ -1,19 +1,31 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { app, BrowserWindow, ipcMain, dialog, clipboard } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, clipboard, shell } from 'electron';
 import { createMainWindow } from './windows/mainWindow';
 import { IPC_CHANNELS } from '../shared/constants';
 import type { Account } from '../shared/constants';
 import { listAccounts, getCurrentAccount, setCurrentAccount, addAccount, removeAccount } from './accounts/accountStore';
 import { authenticateMicrosoft } from './accounts/microsoftAuth';
 import { authenticateYggdrasil } from './accounts/yggdrasilAuth';
-import { getDefaultGameDir, getAllGameDirs, addGameDir, removeGameDir, getVersionDir } from './gameDirs/gameDirsStore';
+import {
+  getDefaultGameDir,
+  getAllGameDirs,
+  addGameDir,
+  removeGameDir,
+  getVersionDir,
+  scanInstalledVersions,
+} from './gameDirs/gameDirsStore';
 import { downloadVersion, fetchVersionManifest } from './downloader/downloaderManager';
 import { initAutoUpdater, downloadUpdate, quitAndInstall, setUpdaterWindow } from './updater/updater';
-import { launchGame, offlineUUID } from './launcher/launcher';
 import {
-  getEasyTierPath,
+  launchGame,
+  stopGame,
+  offlineUUID,
+  exportLaunchScript,
+  type LaunchOptions,
+} from './launcher/launcher';
+import {
   getLocalIP,
   generateRoomCode,
   encodeInviteCode,
@@ -65,7 +77,16 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.BG_IMAGE_READ, async (_event, filePath: string) => {
     try {
-      const buffer = fs.readFileSync(filePath);
+      const ALLOWED_EXT = ['.png', '.jpg', '.jpeg', '.svg', '.webp', '.bmp', '.gif', '.avif', '.tiff', '.tif'];
+      // Whitelist extensions and cap the file size to avoid blocking the main
+      // process with huge synchronous reads / massive base64 strings.
+      if (typeof filePath !== 'string' || !ALLOWED_EXT.includes(path.extname(filePath).toLowerCase())) {
+        return null;
+      }
+      const stat = await fs.promises.stat(filePath);
+      if (stat.size > 20 * 1024 * 1024) return null; // 20 MB cap
+
+      const buffer = await fs.promises.readFile(filePath);
       const ext = path.extname(filePath).slice(1).toLowerCase();
       const mime: Record<string, string> = {
         png: 'image/png',
@@ -126,6 +147,7 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.GAME_DIR_GET_VERSION_PATH, (_event, versionId: string) => {
     return getVersionDir(versionId);
   });
+  ipcMain.handle(IPC_CHANNELS.GAME_DIR_SCAN_VERSIONS, () => scanInstalledVersions());
 
   // ── Window controls ──
   ipcMain.on(IPC_CHANNELS.WINDOW_MINIMIZE, () => mainWindow?.minimize());
@@ -192,8 +214,54 @@ function registerIpcHandlers(): void {
     return { success: true };
   });
 
+  // ── Shell ──
+  ipcMain.handle(IPC_CHANNELS.SHELL_OPEN_PATH, async (_event, targetPath: string) => {
+    try {
+      // Only allow opening paths inside the game directory
+      if (typeof targetPath !== 'string' || !targetPath) {
+        return { success: false, error: 'invalid path' };
+      }
+      const gameDir = getDefaultGameDir();
+      const resolved = path.resolve(targetPath);
+      const inside =
+        resolved.toLowerCase() === gameDir.toLowerCase() ||
+        resolved.toLowerCase().startsWith(gameDir.toLowerCase() + path.sep);
+      if (!inside) return { success: false, error: '路径不在游戏目录内' };
+
+      const openError = await shell.openPath(resolved);
+      return openError ? { success: false, error: openError } : { success: true };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  });
+
   // ── Game launch ──
-  ipcMain.handle(IPC_CHANNELS.LAUNCH_GAME, async (_event, versionId: string, playerName: string) => {
+  ipcMain.handle(IPC_CHANNELS.LAUNCH_STOP, () => {
+    stopGame();
+    return { success: true };
+  });
+
+  ipcMain.handle(
+    IPC_CHANNELS.EXPORT_LAUNCH_SCRIPT,
+    async (_event, versionId: string, options?: LaunchOptions) => {
+      const account = getCurrentAccount();
+      const auth = account
+        ? {
+            playerName: account.name,
+            uuid: account.uuid,
+            accessToken:
+              account.type === 'microsoft'
+                ? account.minecraftToken || '0'
+                : account.yggdrasilToken || '0',
+          }
+        : { playerName: 'Player', uuid: offlineUUID('Player'), accessToken: '0' };
+      return exportLaunchScript(versionId, auth, options);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.LAUNCH_GAME,
+    async (_event, versionId: string, playerName: string, options?: LaunchOptions) => {
     const account = getCurrentAccount();
     const auth = account
       ? {
@@ -209,11 +277,20 @@ function registerIpcHandlers(): void {
           uuid: offlineUUID(playerName || 'Player'),
           accessToken: '0',
         };
-    return launchGame(versionId, auth, (progress) => {
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send(IPC_CHANNELS.LAUNCH_PROGRESS, progress);
-      }
-    });
+    // Launch from the game directory that actually contains this version
+    const hit = scanInstalledVersions().find((v) => v.id === versionId);
+    const gameDir = hit ? hit.gameDir : getDefaultGameDir();
+    return launchGame(
+      versionId,
+      auth,
+      (progress) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send(IPC_CHANNELS.LAUNCH_PROGRESS, progress);
+        }
+      },
+      gameDir,
+      options,
+    );
   });
 
   // ── EasyTier P2P + LAN scan ──
@@ -249,10 +326,6 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.TERRACOTTA_STOP, () => {
     stopEasyTier();
     return { success: true };
-  });
-
-  ipcMain.handle(IPC_CHANNELS.TERRACOTTA_GET_ROOM, () => {
-    return null;
   });
 
   ipcMain.handle(IPC_CHANNELS.TERRACOTTA_SCAN, async () => {

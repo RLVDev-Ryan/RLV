@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { themeStore, type ThemeSettings } from '../stores/themeStore';
-import { useI18n } from '../hooks/useI18n';
+import { useI18n, type I18nKey } from '../hooks/useI18n';
 import { CREDITS, type CreditDetail } from '../data/credits';
 
 type SettingsTab = 'personalization' | 'language' | 'about';
@@ -35,17 +35,28 @@ const FONT_OPTIONS = [
   'Maple Mono NF CN ExtraBold Italic',
 ] as const;
 
-const TABS: { key: SettingsTab; labelKey: string; icon: string }[] = [
+const TABS: { key: SettingsTab; labelKey: I18nKey; icon: React.ReactNode }[] = [
   { key: 'personalization', labelKey: 'settings.personalization', icon: 'assets/icons/custom-icon.png' },
   {
     key: 'language',
     labelKey: 'settings.language_font',
-    icon: `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.5"/><path d="M3 9h12M9 2a11 11 0 010 14A11 11 0 019 2z" stroke="currentColor" strokeWidth="1.5"/></svg>`,
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M3 9h12M9 2a11 11 0 010 14A11 11 0 019 2z" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+    ),
   },
   {
     key: 'about',
     labelKey: 'settings.about',
-    icon: `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.5"/><circle cx="9" cy="9" r="1" fill="currentColor"/><path d="M9 8v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>`,
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.5" />
+        <circle cx="9" cy="9" r="1" fill="currentColor" />
+        <path d="M9 8v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    ),
   },
 ];
 
@@ -72,15 +83,13 @@ export default function SettingsPage() {
                   onClick={() => setActiveTab(tab.key)}
                 >
                   <span className="settings-sidebar-item-icon">
-                    {tab.icon.startsWith('assets/') ? (
+                    {typeof tab.icon === 'string' ? (
                       <img src={tab.icon} alt="" className="settings-sidebar-custom-icon" draggable={false} />
-                    ) : tab.icon.startsWith('<svg') ? (
-                      <span dangerouslySetInnerHTML={{ __html: tab.icon }} />
                     ) : (
                       tab.icon
                     )}
                   </span>
-                  <span>{t(tab.labelKey as any)}</span>
+                  <span>{t(tab.labelKey)}</span>
                 </button>
               </li>
             ))}
@@ -136,21 +145,21 @@ function LanguageSection({
       {/* Font selector */}
       <div className="settings-card">
         <div className="settings-card-title-row">
-          <h3 className="settings-card-title" style={{ margin: 0 }}>选择字体</h3>
+          <h3 className="settings-card-title" style={{ margin: 0 }}>{t('settings.font.choose')}</h3>
           <div className="theme-switch-group" style={{ gap: 4 }}>
             <button
               className={`theme-switch-btn${theme.fontMode === 'global' ? ' theme-switch-btn--active' : ''}`}
               onClick={() => onThemeChange({ fontMode: 'global' })}
               style={{ padding: '4px 10px', fontSize: 12 }}
             >
-              整体选择
+              {t('settings.font_mode.global')}
             </button>
             <button
               className={`theme-switch-btn${theme.fontMode === 'zone' ? ' theme-switch-btn--active' : ''}`}
               onClick={() => onThemeChange({ fontMode: 'zone' })}
               style={{ padding: '4px 10px', fontSize: 12 }}
             >
-              分区选择
+              {t('settings.font_mode.zone')}
             </button>
           </div>
         </div>
@@ -171,7 +180,9 @@ function LanguageSection({
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
             <div>
-              <label style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>内容</label>
+              <label style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>
+                {t('settings.font.zone_content')}
+              </label>
               <select
                 className="form-input form-select"
                 value={theme.fontContent ?? 'Noto Serif CJK SC'}
@@ -185,7 +196,9 @@ function LanguageSection({
               </select>
             </div>
             <div>
-              <label style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>按钮</label>
+              <label style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>
+                {t('settings.font.zone_buttons')}
+              </label>
               <select
                 className="form-input form-select"
                 value={theme.fontButtons ?? 'Noto Serif CJK SC'}
@@ -199,7 +212,9 @@ function LanguageSection({
               </select>
             </div>
             <div>
-              <label style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>日志</label>
+              <label style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>
+                {t('settings.font.zone_logs')}
+              </label>
               <select
                 className="form-input form-select"
                 value={theme.fontLogs ?? 'Noto Serif CJK SC'}
@@ -222,15 +237,16 @@ function LanguageSection({
 /* ── About ── */
 const CATEGORIES = ['参考项目', '依赖库', '字体', '联机', '资料/API'];
 
-const CATEGORY_TITLES: Record<string, string> = {
-  参考项目: '参考的开源启动器项目',
-  依赖库: '核心依赖库',
-  字体: '字体',
-  联机: '联机方案',
-  '资料/API': '资料与 API',
+const CATEGORY_TITLES: Record<string, I18nKey> = {
+  参考项目: 'about.cat.refs',
+  依赖库: 'about.cat.deps',
+  字体: 'about.cat.fonts',
+  联机: 'about.cat.multiplayer',
+  '资料/API': 'about.cat.api',
 };
 
 function AboutSection() {
+  const { t } = useI18n();
   const [selected, setSelected] = useState<CreditDetail | null>(null);
 
   if (selected) {
@@ -240,36 +256,36 @@ function AboutSection() {
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
             <path d="M11 4L6 9l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          <span>返回</span>
+          <span>{t('common.back')}</span>
         </button>
 
         <h2 className="page-title" style={{ marginBottom: 4 }}>
           {selected.name}
         </h2>
         <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
-          {selected.category} ·{' '}
+          {CATEGORY_TITLES[selected.category] ? t(CATEGORY_TITLES[selected.category]) : selected.category} ·{' '}
           <a href={selected.url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>
             {selected.url.replace(/^https?:\/\//, '')}
           </a>
         </p>
 
         <div className="settings-card">
-          <h3 className="settings-card-title">开源协议</h3>
+          <h3 className="settings-card-title">{t('about.license')}</h3>
           <p className="credit-detail-text">{selected.license}</p>
         </div>
 
         <div className="settings-card">
-          <h3 className="settings-card-title">参考 / 调用方式</h3>
+          <h3 className="settings-card-title">{t('about.usage')}</h3>
           <p className="credit-detail-text">{selected.usage}</p>
         </div>
 
         <div className="settings-card">
-          <h3 className="settings-card-title">协议合规要求</h3>
+          <h3 className="settings-card-title">{t('about.requirements')}</h3>
           <p className="credit-detail-text">{selected.licenseRequirements}</p>
         </div>
 
         <div className="settings-card">
-          <h3 className="settings-card-title">免责声明</h3>
+          <h3 className="settings-card-title">{t('about.disclaimer')}</h3>
           <p className="credit-detail-text">{selected.disclaimer}</p>
         </div>
       </div>
@@ -278,15 +294,15 @@ function AboutSection() {
 
   return (
     <div className="settings-section">
-      <h2 className="settings-section-title">关于 Ryan's Launcher Vibe</h2>
-      <p className="settings-section-desc">RLV — 一个现代化的 Minecraft 启动器</p>
+      <h2 className="settings-section-title">{t('about.title')}</h2>
+      <p className="settings-section-desc">{t('about.subtitle')}</p>
 
       {CATEGORIES.map((category) => {
         const items = CREDITS.filter((c) => c.category === category);
         if (items.length === 0) return null;
         return (
           <div key={category} className="settings-card">
-            <h3 className="settings-card-title">{CATEGORY_TITLES[category]}</h3>
+            <h3 className="settings-card-title">{t(CATEGORY_TITLES[category])}</h3>
             <div className="credits-list">
               {items.map((c) => (
                 <button key={c.name} className="credits-item credits-item--clickable" onClick={() => setSelected(c)}>
@@ -350,7 +366,9 @@ function PersonalizationSection({
       e.stopPropagation();
       const file = e.dataTransfer?.files?.[0];
       if (file && /\.(png|jpe?g|svg|webp|bmp|gif|avif|tiff?)$/i.test(file.name)) {
-        setBgImage((file as any).path);
+        // Electron augments File with a non-standard `path` property
+        const filePath = (file as File & { path?: string }).path;
+        if (filePath) setBgImage(filePath);
       }
     };
     window.addEventListener('dragenter', prevent);

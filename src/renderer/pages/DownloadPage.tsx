@@ -1,15 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useI18n } from '../hooks/useI18n';
-
-interface VersionEntry {
-  id: string;
-  type: 'release' | 'snapshot' | 'old_beta' | 'old_alpha';
-  releaseTime: string;
-}
+import { useI18n, type I18nKey } from '../hooks/useI18n';
+import type { VersionManifestEntry } from '../../shared/constants';
 
 type FilterTab = 'release' | 'snapshot' | 'old_beta' | 'old_alpha';
 
-const TYPE_LABELS: Record<VersionEntry['type'], string> = {
+const TYPE_LABELS: Record<VersionManifestEntry['type'], I18nKey> = {
   release: 'download.release',
   snapshot: 'download.snapshot',
   old_beta: 'download.beta',
@@ -18,7 +13,7 @@ const TYPE_LABELS: Record<VersionEntry['type'], string> = {
 
 const LOADER_KEYS = ['vanilla', 'fabric', 'forge', 'neoforge', 'quilt'] as const;
 
-const FILTERS: { key: FilterTab; labelKey: string }[] = [
+const FILTERS: { key: FilterTab; labelKey: I18nKey }[] = [
   { key: 'release', labelKey: 'download.release' },
   { key: 'snapshot', labelKey: 'download.snapshot' },
   { key: 'old_beta', labelKey: 'download.beta' },
@@ -27,12 +22,12 @@ const FILTERS: { key: FilterTab; labelKey: string }[] = [
 
 export default function DownloadPage() {
   const { t } = useI18n();
-  const [versions, setVersions] = useState<VersionEntry[]>([]);
+  const [versions, setVersions] = useState<VersionManifestEntry[]>([]);
   const [filter, setFilter] = useState<FilterTab>('release');
   const [sort, setSort] = useState<'desc' | 'asc'>('desc');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-  const [selectedVersion, setSelectedVersion] = useState<VersionEntry | null>(null);
+  const [selectedVersion, setSelectedVersion] = useState<VersionManifestEntry | null>(null);
   const [showMore, setShowMore] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
   const [progress, setProgress] = useState<{
@@ -75,8 +70,15 @@ export default function DownloadPage() {
     });
 
   const handleDownloadVersion = useCallback(
-    async (versionId: string) => {
+    async (baseVersionId: string, loaderKey: string) => {
       if (!window.electronAPI) return;
+      // Loader (Fabric/Forge/NeoForge/Quilt) installation is not implemented
+      // yet — be honest instead of downloading a non-existent version.
+      if (loaderKey !== 'vanilla') {
+        await window.electronAPI.showAlert(t('download.loader_not_supported'));
+        return;
+      }
+      const versionId = baseVersionId;
       setDownloading(versionId);
       setProgress({ versionId, stage: 'manifest', percent: 0 });
       try {
@@ -85,7 +87,7 @@ export default function DownloadPage() {
         setDownloading(null);
       }
     },
-    [],
+    [t],
   );
 
   // Detail view
@@ -104,14 +106,16 @@ export default function DownloadPage() {
           {selectedVersion.id}
         </h2>
         <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 24 }}>
-          {t(TYPE_LABELS[selectedVersion.type] as any)} ·{' '}
+          {t(TYPE_LABELS[selectedVersion.type])} ·{' '}
           {new Date(selectedVersion.releaseTime).toLocaleDateString(navigator.language)}
         </p>
 
         <div className="download-detail-loaders">
           {visibleLoaders.map((loaderKey) => {
             const lk = loaderKey as string;
-            const dlKey = `${selectedVersion.id}-${lk}`;
+            // Vanilla downloads the actual Mojang version; loader cards are
+            // placeholders until mod-loader installation is implemented.
+            const dlKey = lk === 'vanilla' ? selectedVersion.id : `${selectedVersion.id}-${lk}`;
             const isDownloading = downloading === dlKey;
             const isDone = progress?.versionId === dlKey && progress?.stage === 'done';
             const hasError = progress?.versionId === dlKey && progress?.stage === 'error';
@@ -120,8 +124,8 @@ export default function DownloadPage() {
             return (
               <div key={lk} className="download-loader-card">
                 <div className="download-loader-info">
-                  <span className="download-loader-name">{t(`download.loader.${lk}` as any)}</span>
-                  <span className="download-loader-desc">{t(`download.loader.${lk}_desc` as any)}</span>
+                  <span className="download-loader-name">{t(`download.loader.${lk}` as I18nKey)}</span>
+                  <span className="download-loader-desc">{t(`download.loader.${lk}_desc` as I18nKey)}</span>
                 </div>
                 {isDownloading ? (
                   <div className="download-progress-tag">
@@ -133,7 +137,7 @@ export default function DownloadPage() {
                 ) : (
                   <button
                     className="btn btn--small btn--primary"
-                    onClick={() => handleDownloadVersion(dlKey)}
+                    onClick={() => handleDownloadVersion(selectedVersion.id, lk)}
                     disabled={downloading !== null}
                   >
                     {isDone ? t('download.installed') : t('download.download')}
@@ -168,7 +172,7 @@ export default function DownloadPage() {
               className={`download-tab${filter === f.key ? ' download-tab--active' : ''}`}
               onClick={() => setFilter(f.key)}
             >
-              {t(f.labelKey as any)}
+              {t(f.labelKey)}
             </button>
           ))}
         </div>
@@ -204,7 +208,7 @@ export default function DownloadPage() {
               </div>
             </div>
             <span className="version-card-tag version-card-tag--release">
-              {t(TYPE_LABELS[v.type] as any)}
+              {t(TYPE_LABELS[v.type])}
             </span>
           </button>
         ))}

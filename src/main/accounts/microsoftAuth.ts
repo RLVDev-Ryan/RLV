@@ -1,116 +1,162 @@
-import { app, BrowserWindow } from 'electron';
+import { shell, dialog, clipboard, BrowserWindow } from 'electron';
 import crypto from 'crypto';
-import http from 'http';
-import { URL } from 'url';
+import fs from 'fs';
+import path from 'path';
+import { execFile } from 'child_process';
 import { MicrosoftAuthenticator } from '@xmcl/user';
 import type { Account } from '../../shared/constants';
 import { CONFIG } from '../../shared/config';
-const REDIRECT_URI = 'http://localhost:8080/callback';
-const SCOPES = 'XboxLive.signin%20XboxLive.offline_access';
+import { IPC_CHANNELS } from '../../shared/constants';
+
 const AUTHORITY = 'https://login.microsoftonline.com/consumers/oauth2/v2.0';
+// Xbox Live + offline access, same scope set as the interactive flow.
+const SCOPES = 'XboxLive.signin offline_access';
+// Device-code grants are valid for 15 min server-side — match that so the
+// user never feels rushed.
+const POLL_TIMEOUT_MS = 15 * 60 * 1000;
 
 const microsoftAuth = new MicrosoftAuthenticator({});
 
 /**
- * Start Microsoft OAuth2 flow using a local HTTP server for callback.
- * 1. Start a temporary server on localhost:8080
- * 2. Open the system browser to Microsoft login
- * 3. Catch the redirect with auth code
- * 4. Exchange auth code → Microsoft token → Xbox token → Minecraft token
+ * Open a URL in an Edge InPrivate (无痕) window when available — it has no
+ * cache/extensions, which commonly break Microsoft login in a regular tab.
+ * Falls back to the system default browser.
  */
-export async function authenticateMicrosoft(): Promise<Account | null> {
-  const state = crypto.randomUUID();
-  const codeVerifier = crypto.randomUUID() + crypto.randomUUID();
-  const codeChallenge = crypto.createHash('sha256').update(codeVerifier).digest('base64url');
+function openLoginUrl(url: string): void {
+  const programDirs = [
+    process.env['ProgramFiles(x86)'],
+    process.env.ProgramFiles,
+  ].filter((d): d is string => !!d);
 
-  const authUrl =
-    `${AUTHORITY}/authorize?` +
-    `client_id=${CONFIG.MICROSOFT_CLIENT_ID}` +
-    `&response_type=code` +
-    `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
-    `&scope=${SCOPES}` +
-    `&state=${state}` +
-    `&code_challenge=${codeChallenge}` +
-    `&code_challenge_method=S256`;
+  const edgeExe = programDirs
+    .map((d) => path.join(d, 'Microsoft', 'Edge', 'Application', 'msedge.exe'))
+    .find((p) => fs.existsSync(p));
 
-  try {
-    // Start HTTP server to catch the callback
-    const authCode = await new Promise<string>((resolve, reject) => {
-      const server = http.createServer((req, res) => {
-        if (!req.url) return;
+  if (edgeExe) {
+    execFile(edgeExe, ['--inprivate', url], (err) => {
+      if (err) {
+        console.error('[MSAuth] Edge InPrivate failed, using default browser:', err.message);
+        shell.openExternal(url).catch((e) => console.error('[MSAuth] openExternal failed:', e));
+      }
+    });
+    return;
+  }
 
-        const url = new URL(req.url, REDIRECT_URI);
+  shell.openExternal(url).catch((e) => console.error('[MSAuth] openExternal failed:', e));
+}
 
-        if (req.url.startsWith('/callback')) {
-          const code = url.searchParams.get('code');
-          const returnedState = url.searchParams.get('state');
+interface DeviceCode {
+  device_code: string;
+  user_code: string;
+  verification_uri: string;
+  expires_in: number;
+  interval: number;
+}
 
-          if (returnedState !== state) {
-            res.writeHead(400, { 'Content-Type': 'text/html' });
-            res.end('<h2>State mismatch — 认证失败</h2>');
-            reject(new Error('OAuth state mismatch'));
-            return;
-          }
+interface TokenResponse {
+  access_token: string;
+  refresh_token?: string;
+  expires_in: number;
+  token_type: string;
+}
 
-          if (code) {
-            res.writeHead(200, { 'Content-Type': 'text/html' });
-            res.end('<h2>认证成功！你可以关闭此窗口。</h2><script>window.close()</script>');
-            resolve(code);
-          } else {
-            const err = url.searchParams.get('error') || 'unknown';
-            res.writeHead(400, { 'Content-Type': 'text/html' });
-            res.end(`<h2>认证失败: ${err}</h2>`);
-            reject(new Error(`OAuth error: ${err}`));
-          }
+/** Step 1 — ask Microsoft for a device code + user code. */
+async function requestDeviceCode(): Promise<DeviceCode> {
+  const body = new URLSearchParams({
+    client_id: CONFIG.MICROSOFT_CLIENT_ID,
+    scope: SCOPES,
+  });
 
-          server.close();
-        }
-      });
+  const response = await fetch(`${AUTHORITY}/devicecode`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body,
+  });
+  if (!response.ok) {
+    throw new Error(`设备码请求失败: HTTP ${response.status}`);
+  }
+  const data = (await response.json()) as DeviceCode & { error?: string; error_description?: string };
+  if (data.error) {
+    throw new Error(data.error_description || data.error);
+  }
+  return data;
+}
 
-      server.listen(8080, () => {
-        // Open the system browser for Microsoft login
-        // In Electron, we use shell.openExternal for the system browser
-        // But for dev, we can open a BrowserWindow
-        const loginWindow = new BrowserWindow({
-          width: 800,
-          height: 700,
-          title: 'Microsoft 登录 — RLV',
-          resizable: false,
-          frame: true,
-          webPreferences: {
-            nodeIntegration: false,
-            contextIsolation: true,
-          },
-        });
+/** Step 2 — poll the token endpoint until the user approves (or times out). */
+async function pollDeviceCode(device: DeviceCode): Promise<TokenResponse> {
+  const start = Date.now();
+  const intervalMs = Math.max(device.interval || 5, 5) * 1000;
 
-        loginWindow.loadURL(authUrl);
-
-        loginWindow.on('closed', () => {
-          server.close();
-          reject(new Error('Login window closed by user'));
-        });
-
-        // Also intercept navigation in case the redirect matches
-        loginWindow.webContents.on('will-redirect', (_event, url) => {
-          if (url.startsWith(REDIRECT_URI)) {
-            const code = new URL(url).searchParams.get('code');
-            if (code) {
-              resolve(code);
-              server.close();
-              loginWindow.close();
-            }
-          }
-        });
-      });
+  while (Date.now() - start < POLL_TIMEOUT_MS) {
+    const body = new URLSearchParams({
+      client_id: CONFIG.MICROSOFT_CLIENT_ID,
+      grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+      device_code: device.device_code,
     });
 
-    // Exchange auth code for access token
-    const tokenResponse = await exchangeCodeForToken(authCode, codeVerifier);
-    if (!tokenResponse.access_token) {
-      throw new Error('No access token in response');
-    }
+    const response = await fetch(`${AUTHORITY}/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+    });
 
-    // Exchange Microsoft token for Xbox/Minecraft tokens via @xmcl/user
+    const data = (await response.json()) as TokenResponse & {
+      error?: string;
+      error_description?: string;
+    };
+
+    if (data.access_token) return data;
+
+    if (data.error === 'authorization_pending') {
+      await new Promise((r) => setTimeout(r, intervalMs));
+      continue;
+    }
+    if (data.error === 'authorization_declined') throw new Error('用户拒绝了授权');
+    if (data.error === 'expired_token') throw new Error('登录代码已过期，请重新登录');
+    throw new Error(data.error_description || data.error || '登录失败，请重试');
+  }
+
+  throw new Error('登录超时，请重试');
+}
+
+/**
+ * Authenticate with a Microsoft account using the *device code flow* (the
+ * same approach PCL/HMCL use). It only needs a 9-char code pasted into a
+ * simple Microsoft web page — no multi-step login page, no callback server,
+ * so it's far more reliable on restricted/CN networks.
+ */
+export async function authenticateMicrosoft(): Promise<Account | null> {
+  if (!CONFIG.MICROSOFT_CLIENT_ID || CONFIG.MICROSOFT_CLIENT_ID.startsWith('00000000')) {
+    console.error('[MSAuth] RLV_MICROSOFT_CLIENT_ID 未配置，无法进行微软登录');
+    return null;
+  }
+
+  try {
+    // 1. Get a device code (opens in ~1s, no multi-page login involved)
+    const device = await requestDeviceCode();
+
+    // 2. Open the verification page (InPrivate window preferred) + show the
+    // code in the launcher UI (falling back to a dialog if no window).
+    openLoginUrl(device.verification_uri || 'https://www.microsoft.com/link');
+    clipboard.writeText(device.user_code); // auto-copy, like PCL does
+    const win = BrowserWindow.getAllWindows().find((w) => !w.isDestroyed());
+    if (win) {
+      win.webContents.send(IPC_CHANNELS.MS_DEVICE_CODE, device.user_code);
+    } else {
+      void dialog.showMessageBox({
+        type: 'info',
+        title: 'Microsoft 登录 — RLV',
+        message: '请在打开的网页中输入以下代码（已自动复制）：',
+        detail: device.user_code,
+        buttons: ['知道了'],
+      });
+    }
+    console.log(`[MSAuth] Device code issued: ${device.user_code}, polling for approval…`);
+
+    // 3. Wait for the user to approve in the browser
+    const tokenResponse = await pollDeviceCode(device);
+
+    // 4. Exchange Microsoft token → Xbox → Minecraft tokens
     const xboxInfo = await microsoftAuth.acquireXBoxToken(tokenResponse.access_token);
 
     const minecraftResponse = await microsoftAuth.loginMinecraftWithXBox(
@@ -118,7 +164,6 @@ export async function authenticateMicrosoft(): Promise<Account | null> {
       xboxInfo.minecraftXstsResponse.Token,
     );
 
-    // Get Xbox profile for username/avatar
     const xboxProfile = await microsoftAuth.getXboxGameProfile(
       xboxInfo.liveXstsResponse.DisplayClaims.xui[0].xid,
       xboxInfo.liveXstsResponse.DisplayClaims.xui[0].uhs,
@@ -129,7 +174,7 @@ export async function authenticateMicrosoft(): Promise<Account | null> {
     const gamertag = xboxUser.settings.find((s) => s.id === 'Gamertag')?.value ?? 'Unknown';
     const avatarUrl = xboxUser.settings.find((s) => s.id === 'PublicGamerpic')?.value;
 
-    const account: Account = {
+    return {
       id: crypto.randomUUID(),
       type: 'microsoft',
       name: gamertag,
@@ -142,85 +187,8 @@ export async function authenticateMicrosoft(): Promise<Account | null> {
       lastUsed: Date.now(),
       createdAt: Date.now(),
     };
-
-    return account;
   } catch (error) {
     console.error('Microsoft authentication failed:', error);
-    return null;
-  }
-}
-
-interface TokenResponse {
-  access_token: string;
-  refresh_token?: string;
-  expires_in: number;
-  token_type: string;
-}
-
-/** Exchange OAuth authorization code for access/refresh tokens */
-async function exchangeCodeForToken(code: string, codeVerifier: string): Promise<TokenResponse> {
-  const body = new URLSearchParams({
-    client_id: CONFIG.MICROSOFT_CLIENT_ID,
-    code,
-    code_verifier: codeVerifier,
-    redirect_uri: REDIRECT_URI,
-    grant_type: 'authorization_code',
-  });
-
-  const response = await fetch(`${AUTHORITY}/token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Token exchange failed: ${response.status} ${text}`);
-  }
-
-  return response.json() as Promise<TokenResponse>;
-}
-
-/**
- * Refresh a Microsoft account's tokens using the refresh token.
- */
-export async function refreshMicrosoftAccount(account: Account): Promise<Account | null> {
-  if (account.type !== 'microsoft' || !account.msRefreshToken) return null;
-
-  try {
-    const body = new URLSearchParams({
-      client_id: CONFIG.MICROSOFT_CLIENT_ID,
-      refresh_token: account.msRefreshToken,
-      redirect_uri: REDIRECT_URI,
-      grant_type: 'refresh_token',
-    });
-
-    const response = await fetch(`${AUTHORITY}/token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body,
-    });
-
-    if (!response.ok) return null;
-
-    const tokenData = (await response.json()) as TokenResponse;
-
-    // Re-do the Xbox/Minecraft exchange with the new token
-    const xboxInfo = await microsoftAuth.acquireXBoxToken(tokenData.access_token);
-    const minecraftResponse = await microsoftAuth.loginMinecraftWithXBox(
-      xboxInfo.minecraftXstsResponse.DisplayClaims.xui[0].uhs,
-      xboxInfo.minecraftXstsResponse.Token,
-    );
-
-    return {
-      ...account,
-      msAccessToken: tokenData.access_token,
-      msRefreshToken: tokenData.refresh_token ?? account.msRefreshToken,
-      minecraftToken: minecraftResponse.access_token,
-      lastUsed: Date.now(),
-    };
-  } catch (error) {
-    console.error('Microsoft token refresh failed:', error);
     return null;
   }
 }

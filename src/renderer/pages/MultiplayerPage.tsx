@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useI18n } from '../hooks/useI18n';
 import { multiplayerStore } from '../stores/multiplayerStore';
+import type { LanGame } from '../../shared/constants';
 
 const STORAGE_KEY = 'rlv_terracotta_disclaimer';
 
@@ -18,7 +19,7 @@ export default function MultiplayerPage() {
   const [joinCode, setJoinCode] = useState('');
   const [createPort, setCreatePort] = useState('');
   const [message, setMessage] = useState<string | null>(null);
-  const [lanGames, setLanGames] = useState<any[]>([]);
+  const [lanGames, setLanGames] = useState<LanGame[]>([]);
   const [scanning, setScanning] = useState(false);
 
   useEffect(() => {
@@ -37,14 +38,6 @@ export default function MultiplayerPage() {
     } else {
       setShowDialog(true);
     }
-    if (multiplayerStore.connected) return;
-    if (window.electronAPI) {
-      window.electronAPI.terracotta.getRoom().then((room) => {
-        if (room?.inviteCode) {
-          multiplayerStore.connect('host', room.inviteCode);
-        }
-      });
-    }
   }, []);
 
   const handleDisclaimerConfirm = () => {
@@ -62,7 +55,7 @@ export default function MultiplayerPage() {
       const port = createPort.trim() ? parseInt(createPort.trim(), 10) : undefined;
       const result = await window.electronAPI.terracotta.start(port);
       if (result.noGames) {
-        setMessage('未检测到该端口的房间。请检查端口号是否正确，端口号可在游戏聊天栏中看到');
+        setMessage(t('multiplayer.no_room'));
       } else if (result.success && result.inviteCode) {
         multiplayerStore.connect('host', result.inviteCode);
         window.electronAPI.copyToClipboard(result.inviteCode);
@@ -305,6 +298,12 @@ export default function MultiplayerPage() {
             </div>
           )}
 
+          <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
+            <button className="btn btn--outline btn--small" onClick={handleScan} disabled={scanning}>
+              {scanning ? t('multiplayer.scanning') : t('multiplayer.scan')}
+            </button>
+          </div>
+
           {connected && lanGames.length > 0 && (
             <div style={{ marginTop: 16 }}>
               <div className="version-grid">
@@ -314,7 +313,7 @@ export default function MultiplayerPage() {
                     className="version-card"
                     onClick={() => {
                       window.electronAPI?.copyToClipboard(`${g.host}:${g.port}`);
-                      setMessage(`已复制 ${g.host}:${g.port}，在游戏内添加服务器加入`);
+                      setMessage(t('multiplayer.copied_addr', { addr: `${g.host}:${g.port}` }));
                     }}
                   >
                     <div className="version-card-left">
@@ -334,13 +333,13 @@ export default function MultiplayerPage() {
                         </svg>
                       </div>
                       <div className="version-card-info">
-                        <span className="version-card-name">{g.worldName || '未知世界'}</span>
+                        <span className="version-card-name">{g.worldName || t('multiplayer.unknown_world')}</span>
                         <span className="version-card-date">
                           {g.host}:{g.port}
                         </span>
                       </div>
                     </div>
-                    <span className="version-card-tag version-card-tag--release">加入</span>
+                    <span className="version-card-tag version-card-tag--release">{t('multiplayer.join')}</span>
                   </button>
                 ))}
               </div>

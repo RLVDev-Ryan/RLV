@@ -1,11 +1,11 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'path';
 import fs from 'fs';
-import { spawn, type ChildProcess } from 'child_process';
+import { exec, spawn, type ChildProcess } from 'child_process';
 import net from 'net';
 import os from 'os';
 import crypto from 'crypto';
-import { IPC_CHANNELS } from '../../shared/constants';
+import { IPC_CHANNELS, type LanGame } from '../../shared/constants';
 
 const DEFAULT_PORT = 11010;
 
@@ -14,13 +14,6 @@ let mainWindow: BrowserWindow | null = null;
 
 export function setMainWindow(win: BrowserWindow | null): void {
   mainWindow = win;
-}
-
-export interface LanGame {
-  motd: string;
-  host: string;
-  port: number;
-  worldName: string;
 }
 
 // ── EasyTier P2P ──
@@ -165,7 +158,9 @@ export function startEasyTierHost(roomCode: string): Promise<boolean> {
     });
 
     setTimeout(() => {
-      if (easyTierProcess && !started) {
+      // Timeout without "listener added" — stdout keywords are unreliable across
+      // versions, so treat a still-running process as started.
+      if (easyTierProcess && easyTierProcess.exitCode === null && !started) {
         started = true;
         resolve(true);
       }
@@ -212,17 +207,25 @@ export function startEasyTierGuest(roomCode: string, hostIP: string): Promise<bo
       resolve(false);
     });
 
-    // Fallback only: resolve after 5s
+    // Fallback only: resolve after 5s if the process is still alive
     setTimeout(() => {
-      if (easyTierProcess) resolve(true);
+      if (easyTierProcess && easyTierProcess.exitCode === null) resolve(true);
     }, 5000);
   });
 }
 
 export function stopEasyTier(): void {
-  if (easyTierProcess) {
-    easyTierProcess.kill();
+  const proc = easyTierProcess;
+  if (proc) {
     easyTierProcess = null;
+    if (process.platform === 'win32') {
+      // taskkill /T /F kills the whole child process tree (easytier forks subprocesses)
+      try {
+        exec(`taskkill /pid ${proc.pid} /T /F`);
+      } catch {}
+    } else {
+      proc.kill();
+    }
   }
 }
 
@@ -255,6 +258,8 @@ export async function scanLanGames(port?: number): Promise<LanGame[]> {
 
 /**
  * Quick TCP port probe — 150ms timeout per host:port.
+ * Note: this only detects that a port is open (i.e. a server is listening);
+ * it does not read the real MOTD. worldName/motd are placeholder values.
  */
 async function probePort(host: string, port: number, results: LanGame[]): Promise<void> {
   try {

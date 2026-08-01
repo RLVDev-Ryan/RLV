@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useI18n } from '../hooks/useI18n';
 
 interface AddAccountDialogProps {
   open: boolean;
   onClose: () => void;
-  onMicrosoft: () => void;
-  onYggdrasil: (serverUrl: string, username: string, password: string) => void;
-  onOffline: (username: string) => void;
+  onMicrosoft: () => Promise<void>;
+  onYggdrasil: (serverUrl: string, username: string, password: string) => Promise<void>;
+  onOffline: (username: string) => Promise<void>;
 }
 
 type Step = 'choose' | 'yggdrasil' | 'offline';
@@ -17,12 +18,26 @@ export default function AddAccountDialog({
   onYggdrasil,
   onOffline,
 }: AddAccountDialogProps) {
+  const { t } = useI18n();
   const [step, setStep] = useState<Step>('choose');
   const [serverUrl, setServerUrl] = useState('https://littleskin.cn/api/yggdrasil');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [offlineName, setOfflineName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [deviceCode, setDeviceCode] = useState<string | null>(null);
+
+  // Show the Microsoft device-code inside the dialog while the user is
+  // authenticating in the opened browser window.
+  useEffect(() => {
+    if (!window.electronAPI?.accounts.onDeviceCode) return;
+    return window.electronAPI.accounts.onDeviceCode((code) => setDeviceCode(code));
+  }, []);
+
+  // Clear the code when the dialog closes.
+  useEffect(() => {
+    if (!open) setDeviceCode(null);
+  }, [open]);
 
   if (!open) return null;
 
@@ -52,13 +67,25 @@ export default function AddAccountDialog({
     }
   };
 
+  const handleMicrosoft = async () => {
+    setLoading(true);
+    try {
+      await onMicrosoft();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const dialogTitle =
+    step === 'choose' ? t('account.add') : step === 'offline' ? t('account.offline') : t('account.yggdrasil');
+
   return (
     <div className="dialog-overlay" onClick={onClose}>
       <div className="dialog" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="dialog-header">
           {step !== 'choose' && (
-            <button className="dialog-back" onClick={handleBack} aria-label="返回">
+            <button className="dialog-back" onClick={handleBack} aria-label={t('account.back')}>
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <path
                   d="M10 3L5 8l5 5"
@@ -70,28 +97,59 @@ export default function AddAccountDialog({
               </svg>
             </button>
           )}
-          <h3 className="dialog-title">
-            {step === 'choose' ? '添加新账户' : step === 'offline' ? '离线账户' : '外置登录'}
-          </h3>
-          <button className="dialog-close" onClick={onClose} aria-label="关闭">
+          <h3 className="dialog-title">{dialogTitle}</h3>
+          <button className="dialog-close" onClick={onClose} aria-label={t('common.close')}>
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <path d="M2 2l10 10M12 2l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
           </button>
         </div>
 
+        {/* Microsoft device-code prompt */}
+        {deviceCode && (
+          <div
+            style={{
+              margin: '0 24px 16px',
+              padding: 12,
+              border: '1px solid var(--accent)',
+              borderRadius: 8,
+              background: 'var(--accent-bg)',
+              textAlign: 'center',
+            }}
+          >
+            <p style={{ margin: '0 0 6px', fontSize: 13, color: 'var(--text-secondary)' }}>
+              {t('account.device_code_hint')}
+            </p>
+            <div
+              style={{
+                fontSize: 28,
+                fontWeight: 700,
+                letterSpacing: 4,
+                color: 'var(--accent)',
+                fontFamily: 'monospace',
+                userSelect: 'all',
+              }}
+            >
+              {deviceCode}
+            </div>
+            <button
+              className="btn btn--small btn--outline"
+              style={{ marginTop: 8 }}
+              onClick={() => navigator.clipboard.writeText(deviceCode)}
+            >
+              {t('account.copy_code')}
+            </button>
+          </div>
+        )}
+
         {/* Body */}
         {step === 'choose' && (
           <div className="dialog-body">
-            <p className="dialog-desc">选择登录方式</p>
+            <p className="dialog-desc">{t('account.choose_method')}</p>
             <div className="auth-options">
               <button
                 className="auth-option"
-                onClick={() => {
-                  setLoading(true);
-                  onMicrosoft();
-                  setLoading(false);
-                }}
+                onClick={handleMicrosoft}
                 disabled={loading}
               >
                 <div className="auth-option-icon">
@@ -103,8 +161,8 @@ export default function AddAccountDialog({
                   </svg>
                 </div>
                 <div className="auth-option-text">
-                  <span className="auth-option-title">正版登录（微软）</span>
-                  <span className="auth-option-desc">使用微软账号登录 Minecraft</span>
+                  <span className="auth-option-title">{t('account.login_microsoft')}</span>
+                  <span className="auth-option-desc">{t('account.login_microsoft_desc')}</span>
                 </div>
                 <svg className="auth-option-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none">
                   <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -119,8 +177,8 @@ export default function AddAccountDialog({
                   </svg>
                 </div>
                 <div className="auth-option-text">
-                  <span className="auth-option-title">外置登录（Little Skin）</span>
-                  <span className="auth-option-desc">使用 Yggdrasil 认证服务器登录</span>
+                  <span className="auth-option-title">{t('account.login_yggdrasil')}</span>
+                  <span className="auth-option-desc">{t('account.login_yggdrasil_desc')}</span>
                 </div>
                 <svg className="auth-option-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none">
                   <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -135,8 +193,8 @@ export default function AddAccountDialog({
                   </svg>
                 </div>
                 <div className="auth-option-text">
-                  <span className="auth-option-title">离线账户</span>
-                  <span className="auth-option-desc">无需登录，输入用户名即可进入</span>
+                  <span className="auth-option-title">{t('account.offline')}</span>
+                  <span className="auth-option-desc">{t('account.login_offline_desc')}</span>
                 </div>
                 <svg className="auth-option-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none">
                   <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -149,7 +207,7 @@ export default function AddAccountDialog({
         {step === 'yggdrasil' && (
           <div className="dialog-body">
             <div className="form-group">
-              <label className="form-label">认证服务器地址</label>
+              <label className="form-label">{t('account.server_url')}</label>
               <input
                 className="form-input"
                 type="text"
@@ -159,23 +217,23 @@ export default function AddAccountDialog({
               />
             </div>
             <div className="form-group">
-              <label className="form-label">邮箱 / 用户名</label>
+              <label className="form-label">{t('account.email')}</label>
               <input
                 className="form-input"
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="请输入邮箱或用户名"
+                placeholder={t('account.email_placeholder')}
               />
             </div>
             <div className="form-group">
-              <label className="form-label">密码</label>
+              <label className="form-label">{t('account.password')}</label>
               <input
                 className="form-input"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="请输入密码"
+                placeholder={t('account.password_placeholder')}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleYggdrasilSubmit();
                 }}
@@ -183,14 +241,14 @@ export default function AddAccountDialog({
             </div>
             <div className="dialog-actions">
               <button className="btn btn--ghost" onClick={handleBack}>
-                返回
+                {t('account.back')}
               </button>
               <button
                 className="btn btn--primary"
                 onClick={handleYggdrasilSubmit}
                 disabled={loading || !serverUrl.trim() || !username.trim() || !password.trim()}
               >
-                {loading ? '登录中…' : '登录'}
+                {loading ? t('account.logging_in') : t('account.login')}
               </button>
             </div>
           </div>
@@ -199,13 +257,13 @@ export default function AddAccountDialog({
         {step === 'offline' && (
           <div className="dialog-body">
             <div className="form-group">
-              <label className="form-label">用户名</label>
+              <label className="form-label">{t('account.username')}</label>
               <input
                 className="form-input"
                 type="text"
                 value={offlineName}
                 onChange={(e) => setOfflineName(e.target.value)}
-                placeholder="输入游戏内显示的名字"
+                placeholder={t('account.offline_placeholder')}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleOfflineSubmit();
                 }}
@@ -214,14 +272,14 @@ export default function AddAccountDialog({
             </div>
             <div className="dialog-actions">
               <button className="btn btn--ghost" onClick={handleBack}>
-                返回
+                {t('account.back')}
               </button>
               <button
                 className="btn btn--primary"
                 onClick={handleOfflineSubmit}
                 disabled={loading || !offlineName.trim()}
               >
-                {loading ? '添加中…' : '添加账户'}
+                {loading ? t('account.adding') : t('account.add_account')}
               </button>
             </div>
           </div>

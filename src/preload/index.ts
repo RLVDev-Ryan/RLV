@@ -1,6 +1,14 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { IPC_CHANNELS } from '../shared/constants';
-import type { Account } from '../shared/constants';
+import {
+  IPC_CHANNELS,
+  type Account,
+  type DownloadProgress,
+  type InstalledVersionInfo,
+  type LanGame,
+  type LaunchProgress,
+  type UpdateStatus,
+  type VersionManifestEntry,
+} from '../shared/constants';
 
 /**
  * Expose a safe, typed API to the renderer process via contextBridge.
@@ -27,9 +35,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAppVersion: () => ipcRenderer.invoke(IPC_CHANNELS.GET_APP_VERSION),
   getPlatform: (): Promise<NodeJS.Platform> => ipcRenderer.invoke(IPC_CHANNELS.GET_PLATFORM),
 
-  // Dialogs
+  // Dialogs / shell
   showAlert: (message: string) => ipcRenderer.invoke(IPC_CHANNELS.SHOW_ALERT, message),
   openDirectory: (): Promise<string | null> => ipcRenderer.invoke(IPC_CHANNELS.OPEN_DIRECTORY),
+  openPath: (targetPath: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SHELL_OPEN_PATH, targetPath),
 
   // Window controls
   windowMinimize: () => ipcRenderer.send(IPC_CHANNELS.WINDOW_MINIMIZE),
@@ -44,16 +54,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     remove: (dir: string): Promise<string[]> => ipcRenderer.invoke(IPC_CHANNELS.GAME_DIR_REMOVE, dir),
     getVersionPath: (versionId: string): Promise<string> =>
       ipcRenderer.invoke(IPC_CHANNELS.GAME_DIR_GET_VERSION_PATH, versionId),
+    scanVersions: (): Promise<InstalledVersionInfo[]> => ipcRenderer.invoke(IPC_CHANNELS.GAME_DIR_SCAN_VERSIONS),
   },
 
   // ── Downloader ──
   download: {
-    listVersions: (): Promise<{ success: boolean; versions: any[] }> =>
+    listVersions: (): Promise<{ success: boolean; versions: VersionManifestEntry[] }> =>
       ipcRenderer.invoke(IPC_CHANNELS.DOWNLOAD_LIST_VERSIONS),
     start: (versionId: string): Promise<{ success: boolean; error?: string }> =>
       ipcRenderer.invoke(IPC_CHANNELS.DOWNLOAD_START, versionId),
-    onProgress: (callback: (progress: any) => void) => {
-      const handler = (_event: any, progress: any) => callback(progress);
+    onProgress: (callback: (progress: DownloadProgress) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, progress: DownloadProgress) => callback(progress);
       ipcRenderer.on(IPC_CHANNELS.DOWNLOAD_PROGRESS, handler);
       return () => ipcRenderer.removeListener(IPC_CHANNELS.DOWNLOAD_PROGRESS, handler);
     },
@@ -68,10 +79,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // ── Game launch ──
   launch: {
-    game: (versionId: string, playerName: string): Promise<{ success: boolean; error?: string }> =>
-      ipcRenderer.invoke(IPC_CHANNELS.LAUNCH_GAME, versionId, playerName),
-    onProgress: (callback: (progress: any) => void) => {
-      const handler = (_event: any, progress: any) => callback(progress);
+    game: (
+      versionId: string,
+      playerName: string,
+      options?: { memoryMB?: number; jvmArgs?: string[]; gameArgs?: string[] },
+    ): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.LAUNCH_GAME, versionId, playerName, options),
+    stop: (): Promise<{ success: boolean }> => ipcRenderer.invoke(IPC_CHANNELS.LAUNCH_STOP),
+    exportScript: (
+      versionId: string,
+      options?: { memoryMB?: number; jvmArgs?: string[]; gameArgs?: string[] },
+    ): Promise<{ success: boolean; path?: string; error?: string }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.EXPORT_LAUNCH_SCRIPT, versionId, options),
+    onProgress: (callback: (progress: LaunchProgress) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, progress: LaunchProgress) => callback(progress);
       ipcRenderer.on(IPC_CHANNELS.LAUNCH_PROGRESS, handler);
       return () => ipcRenderer.removeListener(IPC_CHANNELS.LAUNCH_PROGRESS, handler);
     },
@@ -79,8 +100,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // ── Auto updater ──
   updater: {
-    onStatus: (callback: (status: any) => void) => {
-      const handler = (_event: any, status: any) => callback(status);
+    onStatus: (callback: (status: UpdateStatus) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, status: UpdateStatus) => callback(status);
       ipcRenderer.on(IPC_CHANNELS.UPDATE_STATUS, handler);
       return () => ipcRenderer.removeListener(IPC_CHANNELS.UPDATE_STATUS, handler);
     },
@@ -97,8 +118,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     join: (inviteCode: string): Promise<{ success: boolean }> =>
       ipcRenderer.invoke(IPC_CHANNELS.TERRACOTTA_JOIN, inviteCode),
     stop: (): Promise<{ success: boolean }> => ipcRenderer.invoke(IPC_CHANNELS.TERRACOTTA_STOP),
-    getRoom: (): Promise<{ inviteCode: string } | null> => ipcRenderer.invoke(IPC_CHANNELS.TERRACOTTA_GET_ROOM),
-    scan: (): Promise<{ games: any[] }> => ipcRenderer.invoke(IPC_CHANNELS.TERRACOTTA_SCAN),
+    scan: (): Promise<{ games: LanGame[] }> => ipcRenderer.invoke(IPC_CHANNELS.TERRACOTTA_SCAN),
   },
 
   // ── Account management ──
@@ -112,5 +132,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     addOffline: (username: string): Promise<Account | null> =>
       ipcRenderer.invoke(IPC_CHANNELS.ACCOUNTS_ADD_OFFLINE, username),
     remove: (id: string): Promise<boolean> => ipcRenderer.invoke(IPC_CHANNELS.ACCOUNTS_REMOVE, id),
+    onDeviceCode: (callback: (code: string) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, code: string) => callback(code);
+      ipcRenderer.on(IPC_CHANNELS.MS_DEVICE_CODE, handler);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.MS_DEVICE_CODE, handler);
+    },
   },
 });

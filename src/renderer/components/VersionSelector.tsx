@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { LOADER_META, VANILLA_ICON, VANILLA_CARD_BG, getBaseVersion } from '../../shared/constants';
 import type { MinecraftVersion } from '../../shared/constants';
+import { useI18n } from '../hooks/useI18n';
 
 interface VersionSelectorProps {
   versions: MinecraftVersion[];
@@ -12,12 +13,8 @@ function getVersionCardBg(v: MinecraftVersion): string {
   return v.loader ? LOADER_META[v.loader].cardBg : VANILLA_CARD_BG;
 }
 
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
 export default function VersionSelector({ versions, selected, onSelect }: VersionSelectorProps) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const ref = useRef<HTMLDivElement>(null);
@@ -57,7 +54,7 @@ export default function VersionSelector({ versions, selected, onSelect }: Versio
         disabled={empty}
       >
         <span className="version-selector-value">
-          {empty ? '暂无已安装版本' : selected ? getBaseVersion(selected.id) : '选择版本'}
+          {empty ? t('version.empty') : selected ? getBaseVersion(selected.id) : t('launch.choose_version')}
         </span>
         {!empty && (
           <span className={`version-selector-chevron ${open ? 'version-selector-chevron--open' : ''}`}>
@@ -85,14 +82,14 @@ export default function VersionSelector({ versions, selected, onSelect }: Versio
               ref={searchRef}
               className="version-selector-search-input"
               type="text"
-              placeholder="搜索版本…"
+              placeholder={t('launch.search_version')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
           <div className="version-selector-list">
             {filtered.length === 0 ? (
-              <div className="version-selector-empty">无匹配版本</div>
+              <div className="version-selector-empty">{t('download.no_match')}</div>
             ) : (
               versionItems.map(({ version: v, loaderMeta: lm }) => (
                 <button
@@ -115,7 +112,9 @@ export default function VersionSelector({ versions, selected, onSelect }: Versio
                   </div>
                   <div className="version-selector-item-info">
                     <span className="version-selector-item-name">{getBaseVersion(v.id)}</span>
-                    <span className="version-selector-item-type">{v.type === 'release' ? '正式版' : v.type}</span>
+                    <span className="version-selector-item-type">
+                      {v.type === 'release' ? t('download.release') : v.type}
+                    </span>
                   </div>
                   {lm && (
                     <span

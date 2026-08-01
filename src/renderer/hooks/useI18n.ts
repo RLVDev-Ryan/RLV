@@ -8,7 +8,7 @@ import ko from '../locales/ko.json';
 import en from '../locales/en.json';
 
 type LocaleDict = Record<string, string>;
-type Key = keyof typeof zhCN;
+export type I18nKey = keyof typeof zhCN;
 
 const LOCALE_MAP: Record<AppLocale, LocaleDict> = {
   'zh-CN': zhCN as LocaleDict,
@@ -30,7 +30,7 @@ export function setLocale(locale: AppLocale) {
   notify();
 }
 
-export function t(key: Key, params?: Record<string, string | number>): string {
+export function t(key: I18nKey, params?: Record<string, string | number>): string {
   const template = currentDict[key] ?? key;
   if (!params) return template;
   return template.replace(/\{(\w+)\}/g, (_, name) => String(params[name] ?? `{${name}}`));
@@ -47,7 +47,7 @@ export function useI18n() {
     };
   }, []);
 
-  const _t = useCallback((key: Key, params?: Record<string, string | number>) => t(key, params), []);
+  const _t = useCallback((key: I18nKey, params?: Record<string, string | number>) => t(key, params), []);
 
   return { t: _t };
 }

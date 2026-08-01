@@ -27,7 +27,6 @@ export async function authenticateYggdrasil(
     });
 
     const profile = result.selectedProfile;
-    const userEmail = result.user?.email ?? result.user?.username ?? username;
 
     const account: Account = {
       id: crypto.randomUUID(),
@@ -46,43 +45,6 @@ export async function authenticateYggdrasil(
     return account;
   } catch (error) {
     console.error('Yggdrasil authentication failed:', error);
-    return null;
-  }
-}
-
-/**
- * Validate a Yggdrasil token — returns true if still valid.
- */
-export async function validateYggdrasilToken(
-  serverUrl: string,
-  accessToken: string,
-  clientToken: string,
-): Promise<boolean> {
-  try {
-    const client = new YggdrasilClient(serverUrl);
-    return await client.validate(accessToken, clientToken);
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Refresh a Yggdrasil token.
- */
-export async function refreshYggdrasilToken(
-  serverUrl: string,
-  accessToken: string,
-  clientToken: string,
-): Promise<{ accessToken: string; clientToken: string } | null> {
-  try {
-    const client = new YggdrasilClient(serverUrl);
-    const result = await client.refresh({ accessToken, clientToken });
-    return {
-      accessToken: result.accessToken,
-      clientToken: result.clientToken,
-    };
-  } catch (error) {
-    console.error('Yggdrasil token refresh failed:', error);
     return null;
   }
 }

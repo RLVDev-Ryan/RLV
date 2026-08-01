@@ -183,18 +183,9 @@ export const CREDITS: CreditDetail[] = [
     url: 'https://easytier.cn/',
     category: '联机',
     license: 'Apache-2.0',
-    usage: '通过 CLI 调用建立 P2P 虚拟局域网，配合 Minecraft 局域网联机。',
+    usage: '通过调用 EasyTier 官方程序 easytier-core（随启动器分发）建立 P2P 虚拟局域网，配合 Minecraft 局域网联机。',
     licenseRequirements: 'Apache-2.0 允许自由使用与分发；作为独立二进制随启动器分发。',
     disclaimer: 'EasyTier 为独立开源项目，其联机效果取决于网络环境，本启动器不对其负责。',
-  },
-  {
-    name: 'Terracotta（陶瓦联机）',
-    url: 'https://github.com/burningtnt/Terracotta',
-    category: '联机',
-    license: 'GPL-3.0',
-    usage: '参考其 P2P 联机协议与 HMCL 集成方式。',
-    licenseRequirements: '仅参考设计，未复制其 GPL 代码。',
-    disclaimer: '陶瓦联机为第三方开源自由软件，使用过程中遇到的问题请通过相关渠道反馈。',
   },
 
   // ── 资料与 API ──
