@@ -46,7 +46,6 @@ npm run dist:win   # 打包 Windows 安装器
 | [X Minecraft Launcher (XMCL)](https://github.com/Voxelum/x-minecraft-launcher) | 主进程/渲染进程架构参考 |
 | [RMCL](https://github.com/Asho5kan/RMCL) | 联机与账户逻辑参考 |
 | [YNG Client](https://github.com/yng-nctd/YNG-Client) | 微软 OAuth2 登录流程参考 |
-| [Verse](https://github.com/Verse-Loader/Verse) | 配色与界面设计参考 |
 
 ### 核心依赖库
 

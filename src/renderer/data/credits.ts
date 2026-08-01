@@ -55,15 +55,6 @@ export const CREDITS: CreditDetail[] = [
     licenseRequirements: 'MIT 协议允许自由参考与使用。',
     disclaimer: 'YNG Client 为独立项目，与本启动器无关联。',
   },
-  {
-    name: 'Verse',
-    url: 'https://github.com/Verse-Loader/Verse',
-    category: '参考项目',
-    license: 'MIT',
-    usage: '参考其配色方案与界面设计风格。',
-    licenseRequirements: 'MIT 协议允许自由参考。',
-    disclaimer: 'Verse 为独立项目，与本启动器无关联。',
-  },
 
   // ── 核心依赖库 ──
   {
