@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import { app, BrowserWindow, ipcMain, dialog, clipboard, shell } from 'electron';
 import { createMainWindow } from './windows/mainWindow';
 import { IPC_CHANNELS } from '../shared/constants';
-import type { Account } from '../shared/constants';
+import type { Account, ModrinthDownloadRequest, ModrinthProgress } from '../shared/constants';
 import { listAccounts, getCurrentAccount, setCurrentAccount, addAccount, removeAccount } from './accounts/accountStore';
 import { authenticateMicrosoft } from './accounts/microsoftAuth';
 import { authenticateYggdrasil } from './accounts/yggdrasilAuth';
@@ -15,25 +15,29 @@ import {
   removeGameDir,
   getVersionDir,
   scanInstalledVersions,
+  deleteVersion,
 } from './gameDirs/gameDirsStore';
 import { downloadVersion, fetchVersionManifest } from './downloader/downloaderManager';
+import { downloadFile } from './downloader/downloadFile';
+import { installLogger, getLogs, clearLogs, setLoggerWindow } from './logger';
+import { installLoader } from './installer/loaderInstaller';
+import { exportModpack } from './modpack/modpackExporter';
+import type { LoaderKey, LoaderInstallProgress, ModpackExportOptions } from '../shared/constants';
 import { initAutoUpdater, downloadUpdate, quitAndInstall, setUpdaterWindow } from './updater/updater';
 import {
   launchGame,
   stopGame,
   offlineUUID,
   exportLaunchScript,
+  completeVersionFiles,
   type LaunchOptions,
 } from './launcher/launcher';
 import {
-  getLocalIP,
-  generateRoomCode,
-  encodeInviteCode,
-  decodeInviteCode,
   startEasyTierHost,
   startEasyTierGuest,
   stopEasyTier,
-  scanLanGames,
+  getRoomPlayers,
+  isRoomConnected,
   setMainWindow,
 } from './terracotta/terracottaManager';
 
@@ -42,6 +46,9 @@ let mainWindow: BrowserWindow | null = null;
 // Disable hardware acceleration — fixes Win+Shift+S screenshot not working
 // (Electron GPU process can interfere with Windows screenshot compositor)
 app.disableHardwareAcceleration();
+
+// Capture main-process console output for the Logs page.
+installLogger();
 
 function registerIpcHandlers(): void {
   // ── App lifecycle ──
@@ -148,6 +155,14 @@ function registerIpcHandlers(): void {
     return getVersionDir(versionId);
   });
   ipcMain.handle(IPC_CHANNELS.GAME_DIR_SCAN_VERSIONS, () => scanInstalledVersions());
+  ipcMain.handle(IPC_CHANNELS.GAME_DIR_DELETE_VERSION, (_event, versionId: string) => {
+    return deleteVersion(versionId);
+  });
+  ipcMain.handle(IPC_CHANNELS.GAME_DIR_COMPLETE_FILES, async (_event, versionId: string) => {
+    const hit = scanInstalledVersions().find((v) => v.id === versionId);
+    const gameDir = hit ? hit.gameDir : getDefaultGameDir();
+    return completeVersionFiles(versionId, gameDir);
+  });
 
   // ── Window controls ──
   ipcMain.on(IPC_CHANNELS.WINDOW_MINIMIZE, () => mainWindow?.minimize());
@@ -235,6 +250,129 @@ function registerIpcHandlers(): void {
     }
   });
 
+  // Open an external URL in the default browser (https only).
+  ipcMain.handle(IPC_CHANNELS.SHELL_OPEN_EXTERNAL, async (_event, url: string) => {
+    try {
+      if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) {
+        return { success: false, error: 'invalid url' };
+      }
+      await shell.openExternal(url);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  });
+
+  // Open a single file picker (used for the custom Java path).
+  ipcMain.handle(IPC_CHANNELS.OPEN_FILE, async () => {
+    try {
+      const options: Electron.OpenDialogOptions = {
+        title: '选择文件',
+        properties: ['openFile'],
+        filters: [{ name: 'Executable', extensions: ['exe'] }, { name: 'All files', extensions: ['*'] }],
+      };
+      const result =
+        mainWindow && !mainWindow.isDestroyed()
+          ? await dialog.showOpenDialog(mainWindow, options)
+          : await dialog.showOpenDialog(options);
+      return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
+    } catch {
+      return null;
+    }
+  });
+
+  // ── Logs ──
+  ipcMain.handle(IPC_CHANNELS.LOGS_GET, () => getLogs());
+  ipcMain.handle(IPC_CHANNELS.LOGS_CLEAR, () => {
+    clearLogs();
+    return { success: true };
+  });
+  ipcMain.handle(IPC_CHANNELS.LOGS_OPEN_FOLDER, async () => {
+    try {
+      const dir = path.join(app.getPath('userData'), 'logs');
+      fs.mkdirSync(dir, { recursive: true });
+      const err = await shell.openPath(dir);
+      return { success: !err, error: err || undefined };
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  });
+
+  // ── Modpack export ──
+  ipcMain.handle(
+    IPC_CHANNELS.MODPACK_EXPORT,
+    async (_event, versionId: string, options: ModpackExportOptions) => {
+      const hit = scanInstalledVersions().find((v) => v.id === versionId);
+      const gameDir = hit ? hit.gameDir : getDefaultGameDir();
+      const dialogOpts = {
+        title: '导出整合包',
+        defaultPath: `${versionId}.zip`,
+        filters: [{ name: 'ZIP', extensions: ['zip'] }],
+      };
+      const result =
+        mainWindow && !mainWindow.isDestroyed()
+          ? await dialog.showSaveDialog(mainWindow, dialogOpts)
+          : await dialog.showSaveDialog(dialogOpts);
+      if (result.canceled || !result.filePath) return { success: false, error: '已取消' };
+      return exportModpack(gameDir, options, result.filePath);
+    },
+  );
+
+  // ── Mod loader install ──
+  ipcMain.handle(IPC_CHANNELS.LOADER_INSTALL, async (_event, loader: LoaderKey, gameVersion: string) => {
+    const gameDir = getDefaultGameDir();
+    const send = (stage: string, percent: number, message?: string) => {
+      const payload: LoaderInstallProgress = { loader, gameVersion, stage, percent, message };
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(IPC_CHANNELS.LOADER_PROGRESS, payload);
+      }
+    };
+    return installLoader(loader, gameVersion, gameDir, send);
+  });
+
+  // ── Modrinth mod download ──
+  ipcMain.handle(IPC_CHANNELS.MODRINTH_DOWNLOAD, async (_event, req: ModrinthDownloadRequest) => {
+    try {
+      if (!req || typeof req.url !== 'string' || typeof req.filename !== 'string' || typeof req.gameDir !== 'string') {
+        return { success: false, error: 'invalid request' };
+      }
+      // Only allow downloads from the Modrinth CDN.
+      const parsed = new URL(req.url);
+      if (!/^(cdn\.)?modrinth\.com$/.test(parsed.hostname)) {
+        return { success: false, error: 'download source not allowed' };
+      }
+      const filename = path.basename(req.filename); // strip any path traversal
+      const dest = path.join(req.gameDir, 'mods', filename);
+      const sendProgress = (stage: ModrinthProgress['stage'], percent: number, error?: string) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send(IPC_CHANNELS.MODRINTH_PROGRESS, {
+            projectId: req.projectId,
+            filename,
+            percent,
+            stage,
+            error,
+          });
+        }
+      };
+
+      await downloadFile(req.url, dest, (percent) => sendProgress('downloading', percent));
+      sendProgress('done', 100);
+      return { success: true, path: dest };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(IPC_CHANNELS.MODRINTH_PROGRESS, {
+          projectId: req?.projectId,
+          filename: req?.filename ?? '',
+          percent: 0,
+          stage: 'error',
+          error: msg,
+        });
+      }
+      return { success: false, error: msg };
+    }
+  });
+
   // ── Game launch ──
   ipcMain.handle(IPC_CHANNELS.LAUNCH_STOP, () => {
     stopGame();
@@ -295,42 +433,22 @@ function registerIpcHandlers(): void {
 
   // ── EasyTier P2P + LAN scan ──
   ipcMain.handle(IPC_CHANNELS.TERRACOTTA_START, async (_event, port?: number) => {
-    // Step 1: scan specific port for Minecraft room
-    const games = await scanLanGames(port);
-    if (games.length === 0) {
-      return { success: true, inviteCode: null, noGames: true };
-    }
-
-    // Step 2: found game, start P2P room
-    const roomCode = generateRoomCode();
-    const ok = await startEasyTierHost(roomCode);
-    if (!ok) return { success: false, inviteCode: null, noGames: false };
-
-    const localIP = getLocalIP();
-    if (!localIP) {
-      stopEasyTier();
-      return { success: false, inviteCode: null, noGames: false };
-    }
-
-    const inviteCode = encodeInviteCode(roomCode, localIP);
-    return { success: true, inviteCode, noGames: false, gameCount: games.length };
+    const playerName = getCurrentAccount()?.name ?? 'RLV 主机';
+    return startEasyTierHost(port, playerName);
   });
 
   ipcMain.handle(IPC_CHANNELS.TERRACOTTA_JOIN, async (_event, code: string) => {
-    const decoded = decodeInviteCode(code.trim().toUpperCase());
-    if (!decoded) return { success: false };
-    const ok = await startEasyTierGuest(decoded.roomCode, decoded.ip);
-    return { success: ok };
+    const playerName = getCurrentAccount()?.name ?? 'RLV 玩家';
+    return startEasyTierGuest(code, playerName);
   });
 
-  ipcMain.handle(IPC_CHANNELS.TERRACOTTA_STOP, () => {
-    stopEasyTier();
+  ipcMain.handle(IPC_CHANNELS.TERRACOTTA_STOP, async () => {
+    await stopEasyTier();
     return { success: true };
   });
 
-  ipcMain.handle(IPC_CHANNELS.TERRACOTTA_SCAN, async () => {
-    const games = await scanLanGames();
-    return { games };
+  ipcMain.handle(IPC_CHANNELS.TERRACOTTA_PLAYERS, () => {
+    return { players: getRoomPlayers(), connected: isRoomConnected() };
   });
 }
 
@@ -338,6 +456,7 @@ app.whenReady().then(() => {
   registerIpcHandlers();
   mainWindow = createMainWindow();
   setMainWindow(mainWindow);
+  setLoggerWindow(mainWindow);
   setUpdaterWindow(mainWindow);
   initAutoUpdater();
 

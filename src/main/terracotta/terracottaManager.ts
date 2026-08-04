@@ -1,286 +1,520 @@
 import { app, BrowserWindow } from 'electron';
-import path from 'path';
-import fs from 'fs';
-import { exec, spawn, type ChildProcess } from 'child_process';
 import net from 'net';
 import os from 'os';
+import fs from 'fs';
+import path from 'path';
 import crypto from 'crypto';
-import { IPC_CHANNELS, type LanGame } from '../../shared/constants';
+import {
+  IPC_CHANNELS,
+  type RoomPlayer,
+  type TerracottaStartResult,
+  type TerracottaJoinResult,
+  type ConnectionDifficulty,
+} from '../../shared/constants';
+import {
+  spawnCore,
+  getPeers,
+  addPortForward,
+  killProcessTree,
+  requestPort,
+  setPermissionErrorHandler,
+  type EasyTierHandle,
+} from './easytier';
+import {
+  generateRoom,
+  encodeInviteCode,
+  decodeInviteCode,
+  type Room,
+} from './room';
+import { scanLanGames, startFakeServer } from './lan';
+import {
+  startScaffoldingServer,
+  ScaffoldingClient,
+  FINGERPRINT,
+  type ScaffoldingServer,
+} from './scaffolding';
 
-const DEFAULT_PORT = 11010;
+/**
+ * RLV multiplayer orchestration.
+ *
+ * Mirrors the Terracotta architecture over the bundled easytier binaries:
+ *   host   — fixed VPN IP + whitelisted ports, Scaffolding server tracks players
+ *   guest  — DHCP node, discovers the host from the peer list, port-forwards the
+ *            Scaffolding port and the Minecraft port to the host, advertises the
+ *            room via a fake LAN announcement.
+ */
 
-let easyTierProcess: ChildProcess | null = null;
+const HOST_VPN_IP = '10.144.144.1';
+const SCAFFOLDING_PORT = 13448;
+const HOST_HOSTNAME_PREFIX = 'rlv-mc-server-';
+const GUEST_HOSTNAME_PREFIX = 'rlv-guest-';
+const HOST_DISCOVER_ATTEMPTS = 5;
+const HOST_DISCOVER_INTERVAL_MS = 3000;
+
 let mainWindow: BrowserWindow | null = null;
+
+// Module-level room state (single room at a time).
+let easyTier: EasyTierHandle | null = null;
+let scaffoldingServer: ScaffoldingServer | null = null;
+let stopFakeServerFn: (() => void) | null = null;
+let guestClient: ScaffoldingClient | null = null;
+let mode: 'host' | 'guest' | null = null;
+let difficulty: ConnectionDifficulty = 'UNKNOWN';
+let guestHostname = '';
+let cachedPlayers: RoomPlayer[] = [];
+let watchdogTimer: NodeJS.Timeout | null = null;
+let guestPlayerName = '';
 
 export function setMainWindow(win: BrowserWindow | null): void {
   mainWindow = win;
-}
-
-// ── EasyTier P2P ──
-
-export function getEasyTierPath(): string {
-  if (!app.isPackaged) {
-    // Try process.cwd() first (most reliable in dev)
-    const byCwd = path.resolve(process.cwd(), 'resources/bin/easytier/easytier-core.exe');
-    if (fs.existsSync(byCwd)) return byCwd;
-    // Fallback to __dirname
-    const byDirname = path.resolve(__dirname, '../../../../../resources/bin/easytier/easytier-core.exe');
-    if (fs.existsSync(byDirname)) return byDirname;
-    console.error('[EasyTier] Not found at:', byCwd, 'or', byDirname);
-    return byCwd;
-  }
-  return path.join(process.resourcesPath, 'bin', 'easytier', 'easytier-core.exe');
-}
-
-export function getLocalIP(): string | null {
-  const interfaces = os.networkInterfaces();
-  for (const name of Object.keys(interfaces)) {
-    for (const iface of interfaces[name] ?? []) {
-      if (iface.family === 'IPv4' && !iface.internal) return iface.address;
+  setPermissionErrorHandler(() => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send(IPC_CHANNELS.TERRACOTTA_PERMISSION_ERROR);
     }
-  }
-  return null;
-}
-
-/** Notify renderer of permission errors */
-function notifyPermissionError(): void {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send(IPC_CHANNELS.TERRACOTTA_PERMISSION_ERROR);
-  }
-}
-
-export function generateRoomCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-  let code = 'RLV';
-  for (let i = 0; i < 8; i++) code += chars[crypto.randomInt(chars.length)];
-  return code;
-}
-
-export function encodeIP(ip: string): string {
-  const map = 'ABCDEFGHIJ';
-  return ip
-    .split('.')
-    .map((o) => o.padStart(3, '0'))
-    .join('')
-    .split('')
-    .map((d) => map[parseInt(d)])
-    .join('');
-}
-
-export function decodeIP(encoded: string): string | null {
-  if (encoded.length !== 12) return null;
-  const map: Record<string, string> = {};
-  'ABCDEFGHIJ'.split('').forEach((l, i) => {
-    map[l] = String(i);
-  });
-  const digits = encoded
-    .split('')
-    .map((c) => map[c])
-    .join('');
-  if (digits.includes('undefined')) return null;
-  const octets = [];
-  for (let i = 0; i < 4; i++) octets.push(parseInt(digits.slice(i * 3, i * 3 + 3), 10));
-  return octets.join('.');
-}
-
-export function encodeInviteCode(roomCode: string, ip: string): string {
-  return `${roomCode}-${encodeIP(ip)}`;
-}
-
-export function decodeInviteCode(inviteCode: string): { roomCode: string; ip: string } | null {
-  const parts = inviteCode.split('-');
-  if (parts.length < 2) return null;
-  const encodedIP = parts.pop()!;
-  const roomCode = parts.join('-');
-  const ip = decodeIP(encodedIP);
-  if (!ip) return null;
-  return { roomCode, ip };
-}
-
-/**
- * Shared stderr handler for permission detection.
- */
-function onStderr(text: string): void {
-  const lower = text.toLowerCase();
-  if (lower.includes('permission') || lower.includes('access denied') || lower.includes('拒绝访问')) {
-    console.error('[EasyTier] Permission error — try running as admin');
-    notifyPermissionError();
-  }
-}
-
-export function startEasyTierHost(roomCode: string): Promise<boolean> {
-  if (easyTierProcess) return Promise.resolve(false);
-  return new Promise((resolve) => {
-    const exePath = getEasyTierPath();
-    console.log('[EasyTier] Starting:', exePath);
-    easyTierProcess = spawn(
-      exePath,
-      [
-        '--network-name',
-        roomCode,
-        '--listeners',
-        `tcp://0.0.0.0:${DEFAULT_PORT}`,
-        '--use-smoltcp',
-        '--no-tun',
-        '--dhcp',
-        '--ipv4',
-        '10.144.0.1',
-      ],
-      { stdio: 'pipe' },
-    );
-
-    let started = false;
-
-    easyTierProcess.stdout?.on('data', (d: Buffer) => {
-      const text = d.toString();
-      console.log('[EasyTier]', text.trim());
-      if (!started && text.includes('listener added')) {
-        started = true;
-        resolve(true);
-      }
-    });
-
-    easyTierProcess.stderr?.on('data', (d: Buffer) => {
-      const text = d.toString();
-      console.log('[EasyTier]', text.trim());
-      onStderr(text);
-    });
-
-    easyTierProcess.on('error', (err) => {
-      console.error('[EasyTier]', err.message);
-      easyTierProcess = null;
-      if (!started) resolve(false);
-    });
-    easyTierProcess.on('close', (code) => {
-      console.log(`[EasyTier] exited ${code}`);
-      easyTierProcess = null;
-      if (!started) resolve(false);
-    });
-
-    setTimeout(() => {
-      // Timeout without "listener added" — stdout keywords are unreliable across
-      // versions, so treat a still-running process as started.
-      if (easyTierProcess && easyTierProcess.exitCode === null && !started) {
-        started = true;
-        resolve(true);
-      }
-    }, 5000);
   });
 }
 
-export function startEasyTierGuest(roomCode: string, hostIP: string): Promise<boolean> {
-  if (easyTierProcess) return Promise.resolve(false);
-  return new Promise((resolve) => {
-    const exePath = getEasyTierPath();
-    console.log('[EasyTier] Connecting:', exePath);
-    easyTierProcess = spawn(
-      exePath,
-      [
-        '--network-name',
-        roomCode,
-        '--peers',
-        `tcp://${hostIP}:${DEFAULT_PORT}`,
-        '--use-smoltcp',
-        '--no-tun',
-        '--dhcp',
-        // No --ipv4 — let DHCP assign automatically
-      ],
-      { stdio: 'pipe' },
-    );
+// ── Helpers ──
 
-    // Guest: no stdout keyword detection — rely on fallback
-    easyTierProcess.stdout?.on('data', (d: Buffer) => console.log('[EasyTier]', d.toString().trim()));
-    easyTierProcess.stderr?.on('data', (d: Buffer) => {
-      const text = d.toString();
-      console.log('[EasyTier]', text.trim());
-      onStderr(text);
-    });
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-    easyTierProcess.on('error', (err) => {
-      console.error('[EasyTier]', err.message);
-      easyTierProcess = null;
-      resolve(false);
-    });
-    easyTierProcess.on('close', (code) => {
-      console.log(`[EasyTier] exited ${code}`);
-      easyTierProcess = null;
-      resolve(false);
-    });
-
-    // Fallback only: resolve after 5s if the process is still alive
-    setTimeout(() => {
-      if (easyTierProcess && easyTierProcess.exitCode === null) resolve(true);
-    }, 5000);
-  });
-}
-
-export function stopEasyTier(): void {
-  const proc = easyTierProcess;
-  if (proc) {
-    easyTierProcess = null;
-    if (process.platform === 'win32') {
-      // taskkill /T /F kills the whole child process tree (easytier forks subprocesses)
-      try {
-        exec(`taskkill /pid ${proc.pid} /T /F`);
-      } catch {}
-    } else {
-      proc.kill();
-    }
-  }
-}
-
-// ── LAN game scanner ──
-
-/**
- * Scan for Minecraft LAN room on localhost + EasyTier virtual subnet.
- * Scans aggressively but with short timeouts and batch concurrency control.
- */
-export async function scanLanGames(port?: number): Promise<LanGame[]> {
-  const results: LanGame[] = [];
-
-  // Localhost is always checked first
-  const targets = ['127.0.0.1', 'localhost'];
-
-  // Add a few common EasyTier virtual IPs (not all 254 — too expensive)
-  for (let i = 1; i <= 10; i++) targets.push(`10.144.0.${i}`);
-
-  const ports = port ? [port] : [25565, 25566, 25567, 25568, 25569, 25570, 25575];
-
-  // Batch in groups of 10 to avoid flooding
-  const CONCURRENCY = 10;
-  for (let i = 0; i < targets.length; i += CONCURRENCY) {
-    const batch = targets.slice(i, i + CONCURRENCY);
-    await Promise.all(batch.flatMap((t) => ports.map((p) => probePort(t, p, results))));
-  }
-
-  return results;
-}
-
-/**
- * Quick TCP port probe — 150ms timeout per host:port.
- * Note: this only detects that a port is open (i.e. a server is listening);
- * it does not read the real MOTD. worldName/motd are placeholder values.
- */
-async function probePort(host: string, port: number, results: LanGame[]): Promise<void> {
+function getMachineId(): string {
+  const dir = app.getPath('userData');
+  const file = path.join(dir, 'machine-id');
   try {
-    const ok = await new Promise<boolean>((resolve) => {
-      const socket = new net.Socket();
-      socket.setTimeout(150);
-      let done = false;
-      const finish = (r: boolean) => {
-        if (!done) {
-          done = true;
-          socket.destroy();
-          resolve(r);
-        }
-      };
-      socket.once('connect', () => finish(true));
-      socket.once('error', () => finish(false));
-      socket.once('timeout', () => finish(false));
-      socket.connect(port, host);
-    });
-    if (ok) {
-      results.push({ motd: 'Minecraft Server', host, port, worldName: 'Minecraft Server' });
+    if (fs.existsSync(file)) {
+      const existing = fs.readFileSync(file, 'utf8').trim();
+      if (/^[0-9a-f]{32}$/.test(existing)) return existing;
     }
-  } catch {}
+    const id = crypto.randomBytes(16).toString('hex');
+    fs.writeFileSync(file, id, 'utf8');
+    return id;
+  } catch {
+    // Fall back to a random id per session if the store is unwritable.
+    return crypto.randomBytes(16).toString('hex');
+  }
 }
+
+const machineId = getMachineId();
+
+function vendor(): string {
+  return `RLV ${app.getVersion()}`;
+}
+
+/** Adapter-name fragments that identify virtual/VPN adapters we must skip. */
+const VIRTUAL_ADAPTER_MARKS = [
+  'radmin', 'easytier', 'easy-tier', 'virtual', 'vmware', 'vbox', 'hyper-v',
+  'vethernet', 'zerotier', 'tailscale', 'hamachi', 'wintun', 'npcap', 'tap-',
+  'loopback', 'isatap', 'teredo', '6to4', 'bluetooth', 'wsl', 'utun',
+];
+
+function isPrivateIPv4(ip: string): boolean {
+  const [a, b] = ip.split('.').map(Number);
+  return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+}
+
+/**
+ * Best local IPv4 for the invite code — a real LAN adapter, not a virtual one.
+ * Enumerates os.networkInterfaces(), skips virtual/VPN adapters by name and the
+ * EasyTier subnet, and prefers private LAN ranges. (The UDP-connect trick was
+ * abandoned — it can hang in sandboxed/offline environments.)
+ */
+export function getLocalIP(): string | null {
+  const ifaces = os.networkInterfaces();
+  const candidates: { ip: string; name: string }[] = [];
+
+  for (const name of Object.keys(ifaces)) {
+    const lower = name.toLowerCase();
+    if (VIRTUAL_ADAPTER_MARKS.some((mark) => lower.includes(mark))) continue;
+    for (const iface of ifaces[name] ?? []) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        const ip = iface.address;
+        if (ip.startsWith('10.144.144.')) continue; // our own virtual subnet
+        candidates.push({ ip, name });
+      }
+    }
+  }
+
+  if (candidates.length === 0) return null;
+  // Prefer private LAN ranges (192.168/10/172.16-31) over public/VPN addresses.
+  const preferred = candidates.find((c) => isPrivateIPv4(c.ip)) ?? candidates[0];
+  return preferred.ip;
+}
+
+/**
+ * Reserve a free TCP port, preferring the given one, excluding `exclude` ports.
+ * The availability probe binds 0.0.0.0 (not 127.0.0.1): the easytier port-forward
+ * binds all interfaces, so a loopback-only bind would return ports that the
+ * forward cannot actually use (Windows SO_REUSEADDR lets 127.0.0.1 overlap an
+ * already-taken 0.0.0.0 binding, which then fails later in easytier with 10048).
+ */
+function reserveLocalPort(preferred?: number, exclude: number[] = []): Promise<number> {
+  const tryBind = (port: number) =>
+    new Promise<number>((resolve) => {
+      const srv = net.createServer();
+      srv.once('error', () => resolve(0));
+      srv.listen(port, '0.0.0.0', () => {
+        const actual = (srv.address() as net.AddressInfo).port;
+        srv.close(() => resolve(actual));
+      });
+    });
+
+  const pick = async (): Promise<number> => {
+    if (preferred && !exclude.includes(preferred)) {
+      const p = await tryBind(preferred);
+      if (p) return p;
+    }
+    for (let i = 0; i < 20; i++) {
+      const p = await tryBind(0);
+      if (p && !exclude.includes(p)) return p;
+    }
+    return 0;
+  };
+  return pick();
+}
+
+function calcDifficulty(localNat?: string, hostNat?: string): ConnectionDifficulty {
+  const is = (t: string) => localNat === t || hostNat === t;
+  if (is('OpenInternet')) return 'EASIEST';
+  if (is('NoPat') || is('FullCone')) return 'SIMPLE';
+  if (is('Restricted') || is('PortRestricted')) return 'MEDIUM';
+  return 'TOUGH';
+}
+
+function notifyPlayersChanged(): void {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send(IPC_CHANNELS.TERRACOTTA_PLAYERS, getRoomPlayers());
+  }
+}
+
+function stopWatchdog(): void {
+  if (watchdogTimer) {
+    clearInterval(watchdogTimer);
+    watchdogTimer = null;
+  }
+}
+
+function clearState(): void {
+  easyTier = null;
+  scaffoldingServer = null;
+  stopFakeServerFn = null;
+  guestClient = null;
+  mode = null;
+  difficulty = 'UNKNOWN';
+  guestHostname = '';
+  cachedPlayers = [];
+  guestPlayerName = '';
+}
+
+// ── Public API ──
+
+export function getRoomPlayers(): RoomPlayer[] {
+  if (mode === 'host' && scaffoldingServer) {
+    return scaffoldingServer.getPlayers();
+  }
+  if (mode === 'guest') return cachedPlayers;
+  return [];
+}
+
+/** Whether a room is currently up (mode set AND the easytier node alive). */
+export function isRoomConnected(): boolean {
+  return mode !== null && easyTier !== null && easyTier.isAlive();
+}
+
+export async function startEasyTierHost(port?: number, playerName?: string): Promise<TerracottaStartResult> {
+  if (easyTier && easyTier.isAlive()) {
+    return { success: false, inviteCode: null, error: '房间已存在' };
+  }
+
+  // 1. The host must specify the Minecraft LAN world port (shown in-game when
+  //    "Open to LAN" is used). Verify a world is actually listening on it.
+  const serverPort = port && port > 0 && port < 65536 ? port : null;
+  if (!serverPort) {
+    return { success: false, inviteCode: null, error: '请输入游戏端口号' };
+  }
+  const games = (await scanLanGames(3000)).filter((g) => g.port === serverPort);
+  if (games.length === 0) {
+    return {
+      success: false,
+      inviteCode: null,
+      error: `未检测到端口 ${serverPort} 的局域网游戏，请先在游戏内开放局域网（端口号可在游戏聊天栏查看）`,
+    };
+  }
+
+  // 2. Room identity + Scaffolding server.
+  const room: Room = generateRoom();
+  let scaffolding: ScaffoldingServer;
+  const opts = {
+    hostProfile: {
+      machineId,
+      name: playerName || 'RLV 主机',
+      vendor: vendor(),
+    },
+    getServerPort: () => serverPort,
+    onPlayersChange: () => notifyPlayersChanged(),
+  };
+  try {
+    // Prefer the fixed port, but fall back to a random one if 13448 is taken
+    // (e.g. another Terracotta instance is running on this machine).
+    scaffolding = await startScaffoldingServer({ ...opts, port: SCAFFOLDING_PORT });
+  } catch {
+    try {
+      scaffolding = await startScaffoldingServer({ ...opts, port: 0 });
+    } catch {
+      return { success: false, inviteCode: null, error: '无法启动房间服务' };
+    }
+  }
+
+  // 3. easytier host node.
+  const rpc = await requestPort(true);
+  const listener = await requestPort(false);
+  if (rpc === 0 || listener === 0) {
+    scaffolding.stop();
+    return { success: false, inviteCode: null, error: '无法分配端口' };
+  }
+  const hostname = `${HOST_HOSTNAME_PREFIX}${scaffolding.port}`;
+  const handle = spawnCore(
+    [
+      '--network-name', room.networkName,
+      '--network-secret', room.networkSecret,
+      '--no-tun',
+      '--ipv4', HOST_VPN_IP,
+      '-l', `tcp://0.0.0.0:${listener}`,
+      '-l', 'udp://0.0.0.0:0',
+      '--hostname', hostname,
+      '--tcp-whitelist', String(scaffolding.port),
+      '--tcp-whitelist', String(serverPort),
+      '--udp-whitelist', String(serverPort),
+      '--compression', 'zstd',
+      '--multi-thread',
+      '--latency-first',
+      '--enable-kcp-proxy',
+      '--p2p-only',
+    ],
+    rpc,
+  );
+
+  // Give the node a moment to come up before declaring success.
+  await sleep(1500);
+  if (!handle.isAlive()) {
+    killProcessTree(handle.pid);
+    scaffolding.stop();
+    return { success: false, inviteCode: null, error: 'EasyTier 启动失败' };
+  }
+
+  const ip = getLocalIP();
+  if (!ip) {
+    killProcessTree(handle.pid);
+    scaffolding.stop();
+    return { success: false, inviteCode: null, error: '无法确定本机局域网地址' };
+  }
+
+  easyTier = handle;
+  scaffoldingServer = scaffolding;
+  mode = 'host';
+
+  const inviteCode = encodeInviteCode(room, ip, listener);
+
+  // Watchdog: surface a dead easytier to the UI.
+  startWatchdog('host');
+
+  return { success: true, inviteCode, mcPort: serverPort };
+}
+
+export async function startEasyTierGuest(code: string, playerName?: string): Promise<TerracottaJoinResult> {
+  if (easyTier && easyTier.isAlive()) {
+    return { success: false, error: '已连接房间' };
+  }
+
+  const decoded = decodeInviteCode(code);
+  if (!decoded) {
+    return { success: false, error: '邀请码无效，请检查后重试' };
+  }
+  const { room, hostIP, listenerPort } = decoded;
+  guestPlayerName = playerName || 'RLV 玩家';
+
+  // 1. Guest easytier node.
+  const rpc = await requestPort(true);
+  if (rpc === 0) return { success: false, error: '无法分配端口' };
+  guestHostname = `${GUEST_HOSTNAME_PREFIX}${crypto.randomBytes(3).toString('hex')}`;
+  const handle = spawnCore(
+    [
+      '--network-name', room.networkName,
+      '--network-secret', room.networkSecret,
+      '--no-tun',
+      '-d',
+      '-l', 'tcp://0.0.0.0:0',
+      '-l', 'udp://0.0.0.0:0',
+      '-p', `tcp://${hostIP}:${listenerPort}`,
+      '--hostname', guestHostname,
+      '--compression', 'zstd',
+      '--multi-thread',
+      '--latency-first',
+      '--enable-kcp-proxy',
+      '--p2p-only',
+    ],
+    rpc,
+  );
+  easyTier = handle;
+  mode = 'guest';
+
+  const fail = async (error: string): Promise<TerracottaJoinResult> => {
+    await stopEasyTier();
+    return { success: false, error };
+  };
+
+  // 2. Discover the host node from the peer list.
+  let hostVPNIP: string | null = null;
+  let scaffoldingPort: number | null = null;
+  let hostNat: string | undefined;
+  let localNat: string | undefined;
+
+  for (let attempt = 0; attempt < HOST_DISCOVER_ATTEMPTS; attempt++) {
+    await sleep(HOST_DISCOVER_INTERVAL_MS);
+    if (!handle.isAlive()) return fail('EasyTier 连接中断');
+    const peers = await getPeers(rpc);
+    if (!peers) continue;
+    const local = peers.find((p) => p.hostname === guestHostname);
+    localNat = local?.nat_type;
+    const server = peers.find((p) => p.hostname.startsWith(HOST_HOSTNAME_PREFIX));
+    if (server && server.ipv4) {
+      hostVPNIP = server.ipv4;
+      const parsedPort = parseInt(server.hostname.slice(HOST_HOSTNAME_PREFIX.length), 10);
+      if (Number.isInteger(parsedPort) && parsedPort > 0 && parsedPort < 65536) {
+        scaffoldingPort = parsedPort;
+      }
+      hostNat = server.nat_type;
+      break;
+    }
+  }
+
+  if (!hostVPNIP || !scaffoldingPort) {
+    return fail('未找到房间主机，请确认邀请码正确且主机仍在线');
+  }
+  difficulty = calcDifficulty(localNat, hostNat);
+
+  // 3. Port-forward the Scaffolding port and handshake. This forward and the
+  //    client are kept alive for the whole session (player_ping / profile list).
+  const scaffoldingLocal = await reserveLocalPort();
+  if (scaffoldingLocal === 0) return fail('无法分配本地端口');
+  const fwdOk = await addPortForward(rpc, 'tcp', `0.0.0.0:${scaffoldingLocal}`, `${hostVPNIP}:${scaffoldingPort}`);
+  if (!fwdOk) return fail('创建虚拟网络转发失败');
+
+  let client: ScaffoldingClient | null = null;
+  try {
+    client = await ScaffoldingClient.open(scaffoldingLocal, 5000);
+  } catch {
+    return fail('无法连接房间服务器');
+  }
+
+  // Fingerprint verification.
+  const ping = await client.sendSync('c:ping', FINGERPRINT);
+  if (!ping || ping.status !== 0 || !ping.data.equals(FINGERPRINT)) {
+    return fail('房间服务器校验失败');
+  }
+
+  // 4. Learn the real Minecraft port, then add a second forward for it.
+  const sp = await client.sendSync('c:server_port');
+  if (!sp || sp.status !== 0 || sp.data.length !== 2) {
+    return fail('无法获取游戏端口');
+  }
+  const realMcPort = sp.data.readUInt16BE(0);
+
+  const localMcPort = await reserveLocalPort(realMcPort, [scaffoldingLocal]);
+  if (localMcPort === 0) {
+    return fail('无法分配本地游戏端口');
+  }
+  const tcpOk = await addPortForward(rpc, 'tcp', `0.0.0.0:${localMcPort}`, `${hostVPNIP}:${realMcPort}`);
+  if (!tcpOk) {
+    return fail('创建游戏转发失败');
+  }
+  // Best-effort UDP forward for mods that rely on it (Simple Voice Chat, etc.).
+  await addPortForward(rpc, 'udp', `0.0.0.0:${localMcPort}`, `${hostVPNIP}:${realMcPort}`);
+
+  // 5. Advertise the room on the local LAN list.
+  stopFakeServerFn = startFakeServer(localMcPort);
+
+  // 6. Keep the client alive: ping the profile + refresh the player list.
+  guestClient = client;
+  await pingGuestProfile();
+  await refreshGuestPlayers();
+
+  startWatchdog('guest');
+
+  return {
+    success: true,
+    connectAddr: `127.0.0.1:${localMcPort}`,
+    difficulty,
+  };
+}
+
+async function pingGuestProfile(): Promise<void> {
+  if (!guestClient || !guestClient.isAlive()) return;
+  await guestClient.sendSync(
+    'c:player_ping',
+    Buffer.from(
+      JSON.stringify({ machine_id: machineId, name: guestPlayerName, vendor: vendor() }),
+      'utf8',
+    ),
+  );
+}
+
+async function refreshGuestPlayers(): Promise<void> {
+  if (!guestClient || !guestClient.isAlive()) return;
+  const res = await guestClient.sendSync('c:player_profiles_list');
+  if (res && res.status === 0) {
+    try {
+      const parsed = JSON.parse(res.data.toString('utf8'));
+      if (Array.isArray(parsed)) {
+        cachedPlayers = parsed.map((p: { machine_id?: unknown; name?: unknown; vendor?: unknown; kind?: unknown }) => ({
+          machineId: String(p.machine_id ?? ''),
+          name: String(p.name ?? ''),
+          vendor: String(p.vendor ?? ''),
+          kind: p.kind === 'GUEST' ? 'GUEST' : 'HOST',
+        }));
+      }
+    } catch {}
+  }
+}
+
+function startWatchdog(kind: 'host' | 'guest'): void {
+  stopWatchdog();
+  watchdogTimer = setInterval(async () => {
+    if (easyTier && !easyTier.isAlive()) {
+      // easytier died — tear everything down.
+      await stopEasyTier();
+      return;
+    }
+    if (kind === 'guest' && guestClient) {
+      if (!guestClient.isAlive()) {
+        await stopEasyTier();
+        return;
+      }
+      await pingGuestProfile();
+      await refreshGuestPlayers();
+    }
+  }, 5000);
+}
+
+export async function stopEasyTier(): Promise<void> {
+  stopWatchdog();
+  if (stopFakeServerFn) {
+    stopFakeServerFn();
+    stopFakeServerFn = null;
+  }
+  if (guestClient) {
+    guestClient.close();
+    guestClient = null;
+  }
+  if (scaffoldingServer) {
+    scaffoldingServer.stop();
+    scaffoldingServer = null;
+  }
+  if (easyTier) {
+    killProcessTree(easyTier.pid);
+    easyTier = null;
+  }
+  clearState();
+}
+
+export { scanLanGames };

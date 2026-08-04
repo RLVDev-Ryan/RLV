@@ -1,5 +1,7 @@
-import { LOADER_META, VANILLA_ICON, VANILLA_CARD_BG, getBaseVersion, getLoaderVersion } from '../../shared/constants';
+import { LOADER_META, VANILLA_CARD_BG, getBaseVersion } from '../../shared/constants';
 import type { MinecraftVersion } from '../../shared/constants';
+import { useI18n } from '../hooks/useI18n';
+import { loadVersionSettings, resolveIcon } from '../../shared/versionSettings';
 
 interface VersionCardProps {
   version: MinecraftVersion;
@@ -7,9 +9,10 @@ interface VersionCardProps {
 }
 
 export default function VersionCard({ version, onClick }: VersionCardProps) {
+  const { t } = useI18n();
   const loaderMeta = version.loader ? LOADER_META[version.loader] : null;
   const cardBg = loaderMeta ? loaderMeta.cardBg : VANILLA_CARD_BG;
-  const loaderVer = getLoaderVersion(version.id);
+  const icon = resolveIcon(loadVersionSettings(version.id).iconList, version.loader);
 
   return (
     <button
@@ -19,16 +22,11 @@ export default function VersionCard({ version, onClick }: VersionCardProps) {
     >
       <div className="version-card-left">
         <div className="version-card-icon">
-          <img
-            className="version-card-img"
-            src={loaderMeta ? loaderMeta.iconPath : VANILLA_ICON}
-            alt={loaderMeta?.label ?? 'Vanilla'}
-            draggable={false}
-          />
+          <img className="version-card-img" src={icon} alt={loaderMeta?.label ?? 'Vanilla'} draggable={false} />
         </div>
         <div className="version-card-info">
           <span className="version-card-name">{getBaseVersion(version.id)}</span>
-          <span className="version-card-date">{loaderVer ?? '原版'}</span>
+          <span className="version-card-date">{loaderMeta ? loaderMeta.label : t('version.vanilla')}</span>
         </div>
       </div>
       <div className="version-card-tags">

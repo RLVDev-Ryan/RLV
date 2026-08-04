@@ -4,8 +4,16 @@ import {
   type Account,
   type DownloadProgress,
   type InstalledVersionInfo,
-  type LanGame,
   type LaunchProgress,
+  type LoaderKey,
+  type LoaderInstallProgress,
+  type ModpackExportOptions,
+  type ModrinthDownloadRequest,
+  type ModrinthDownloadResult,
+  type ModrinthProgress,
+  type TerracottaJoinResult,
+  type TerracottaPlayersResult,
+  type TerracottaStartResult,
   type UpdateStatus,
   type VersionManifestEntry,
 } from '../shared/constants';
@@ -38,8 +46,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Dialogs / shell
   showAlert: (message: string) => ipcRenderer.invoke(IPC_CHANNELS.SHOW_ALERT, message),
   openDirectory: (): Promise<string | null> => ipcRenderer.invoke(IPC_CHANNELS.OPEN_DIRECTORY),
+  openFile: (): Promise<string | null> => ipcRenderer.invoke(IPC_CHANNELS.OPEN_FILE),
   openPath: (targetPath: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke(IPC_CHANNELS.SHELL_OPEN_PATH, targetPath),
+  openExternal: (url: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke(IPC_CHANNELS.SHELL_OPEN_EXTERNAL, url),
 
   // Window controls
   windowMinimize: () => ipcRenderer.send(IPC_CHANNELS.WINDOW_MINIMIZE),
@@ -55,6 +66,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getVersionPath: (versionId: string): Promise<string> =>
       ipcRenderer.invoke(IPC_CHANNELS.GAME_DIR_GET_VERSION_PATH, versionId),
     scanVersions: (): Promise<InstalledVersionInfo[]> => ipcRenderer.invoke(IPC_CHANNELS.GAME_DIR_SCAN_VERSIONS),
+    deleteVersion: (versionId: string): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.GAME_DIR_DELETE_VERSION, versionId),
+    completeFiles: (versionId: string): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.GAME_DIR_COMPLETE_FILES, versionId),
   },
 
   // ── Downloader ──
@@ -70,6 +85,47 @@ contextBridge.exposeInMainWorld('electronAPI', {
     },
   },
 
+  // ── Modrinth mod browser ──
+  modrinth: {
+    download: (req: ModrinthDownloadRequest): Promise<ModrinthDownloadResult> =>
+      ipcRenderer.invoke(IPC_CHANNELS.MODRINTH_DOWNLOAD, req),
+    onProgress: (callback: (progress: ModrinthProgress) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, progress: ModrinthProgress) => callback(progress);
+      ipcRenderer.on(IPC_CHANNELS.MODRINTH_PROGRESS, handler);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.MODRINTH_PROGRESS, handler);
+    },
+  },
+
+  // ── Mod loader install ──
+  loader: {
+    install: (loader: LoaderKey, gameVersion: string): Promise<{ success: boolean; versionId?: string; error?: string }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.LOADER_INSTALL, loader, gameVersion),
+    onProgress: (callback: (p: LoaderInstallProgress) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, p: LoaderInstallProgress) => callback(p);
+      ipcRenderer.on(IPC_CHANNELS.LOADER_PROGRESS, handler);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.LOADER_PROGRESS, handler);
+    },
+  },
+
+  // ── Logs ──
+  logs: {
+    get: (): Promise<string[]> => ipcRenderer.invoke(IPC_CHANNELS.LOGS_GET),
+    clear: (): Promise<{ success: boolean }> => ipcRenderer.invoke(IPC_CHANNELS.LOGS_CLEAR),
+    openFolder: (): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.LOGS_OPEN_FOLDER),
+    onAppend: (callback: (line: string) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, line: string) => callback(line);
+      ipcRenderer.on(IPC_CHANNELS.LOGS_APPEND, handler);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.LOGS_APPEND, handler);
+    },
+  },
+
+  // ── Modpack export ──
+  modpack: {
+    export: (versionId: string, options: ModpackExportOptions): Promise<{ success: boolean; path?: string; error?: string }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.MODPACK_EXPORT, versionId, options),
+  },
+
   // ── Background image ──
   openBgImage: (): Promise<string | null> => ipcRenderer.invoke(IPC_CHANNELS.BG_IMAGE_OPEN),
   readBgImage: (filePath: string): Promise<string | null> => ipcRenderer.invoke(IPC_CHANNELS.BG_IMAGE_READ, filePath),
@@ -82,13 +138,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     game: (
       versionId: string,
       playerName: string,
-      options?: { memoryMB?: number; jvmArgs?: string[]; gameArgs?: string[] },
+      options?: { memoryMB?: number; jvmArgs?: string[]; gameArgs?: string[]; isolation?: boolean; javaPath?: string },
     ): Promise<{ success: boolean; error?: string }> =>
       ipcRenderer.invoke(IPC_CHANNELS.LAUNCH_GAME, versionId, playerName, options),
     stop: (): Promise<{ success: boolean }> => ipcRenderer.invoke(IPC_CHANNELS.LAUNCH_STOP),
     exportScript: (
       versionId: string,
-      options?: { memoryMB?: number; jvmArgs?: string[]; gameArgs?: string[] },
+      options?: { memoryMB?: number; jvmArgs?: string[]; gameArgs?: string[]; isolation?: boolean; javaPath?: string },
     ): Promise<{ success: boolean; path?: string; error?: string }> =>
       ipcRenderer.invoke(IPC_CHANNELS.EXPORT_LAUNCH_SCRIPT, versionId, options),
     onProgress: (callback: (progress: LaunchProgress) => void) => {
@@ -111,14 +167,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // ── Terracotta multiplayer ──
   terracotta: {
-    start: (
-      port?: number,
-    ): Promise<{ success: boolean; inviteCode: string | null; noGames?: boolean; gameCount?: number }> =>
+    start: (port?: number): Promise<TerracottaStartResult> =>
       ipcRenderer.invoke(IPC_CHANNELS.TERRACOTTA_START, port),
-    join: (inviteCode: string): Promise<{ success: boolean }> =>
+    join: (inviteCode: string): Promise<TerracottaJoinResult> =>
       ipcRenderer.invoke(IPC_CHANNELS.TERRACOTTA_JOIN, inviteCode),
     stop: (): Promise<{ success: boolean }> => ipcRenderer.invoke(IPC_CHANNELS.TERRACOTTA_STOP),
-    scan: (): Promise<{ games: LanGame[] }> => ipcRenderer.invoke(IPC_CHANNELS.TERRACOTTA_SCAN),
+    players: (): Promise<TerracottaPlayersResult> => ipcRenderer.invoke(IPC_CHANNELS.TERRACOTTA_PLAYERS),
   },
 
   // ── Account management ──

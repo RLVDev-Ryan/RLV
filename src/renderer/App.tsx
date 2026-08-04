@@ -5,13 +5,16 @@ import LaunchPage from './pages/LaunchPage';
 import DownloadPage from './pages/DownloadPage';
 import MultiplayerPage from './pages/MultiplayerPage';
 import SettingsPage from './pages/SettingsPage';
+import LogsPage from './pages/LogsPage';
 import type { NavKey, UpdateStatus } from '../shared/constants';
 import { useI18n } from './hooks/useI18n';
+import { launchStore } from './stores/launchStore';
 
 const pageMap: Record<NavKey, React.FC> = {
   launch: LaunchPage,
   download: DownloadPage,
   multiplayer: MultiplayerPage,
+  logs: LogsPage,
   settings: SettingsPage,
 };
 
@@ -28,6 +31,15 @@ export default function App() {
       }
     });
     return cleanup;
+  }, []);
+
+  // Track launch progress globally so a background launch keeps updating the
+  // launch store even when the user has navigated away from the launch page.
+  useEffect(() => {
+    if (!window.electronAPI) return;
+    return window.electronAPI.launch.onProgress((p) => {
+      launchStore.setProgress(p);
+    });
   }, []);
 
   const PageComponent = pageMap[activeNav];

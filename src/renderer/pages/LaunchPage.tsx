@@ -1,12 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useI18n } from '../hooks/useI18n';
-import type { Account, MinecraftVersion } from '../../shared/constants';
-import { loadLaunchSettings } from '../../shared/utils';
+import type { Account, MinecraftVersion, LaunchProgress } from '../../shared/constants';
+import { loadLaunchSettings, saveLaunchSettings } from '../../shared/utils';
+import { loadVersionSettings, resolveIcon } from '../../shared/versionSettings';
+import { launchStore } from '../stores/launchStore';
 import AccountSelector from '../components/AccountSelector';
 import AddAccountDialog from '../components/AddAccountDialog';
 import VersionSelector from '../components/VersionSelector';
 import VersionCard from '../components/VersionCard';
 import VersionDetail from '../components/VersionDetail';
+import LaunchingView from '../components/LaunchingView';
 
 export default function LaunchPage() {
   const { t } = useI18n();
@@ -21,25 +24,23 @@ export default function LaunchPage() {
   const [selectedVersion, setSelectedVersion] = useState<MinecraftVersion | null>(null);
   const [detailVersion, setDetailVersion] = useState<MinecraftVersion | null>(null);
 
-  // ── Launch state ──
-  const [launching, setLaunching] = useState(false);
-  const [launchProgress, setLaunchProgress] = useState<{ stage: string; percent: number; message?: string; error?: string } | null>(null);
+  // ── Launch state (global store — survives page navigation) ──
+  const [launching, setLaunching] = useState(launchStore.launching);
+  const [launchProgress, setLaunchProgress] = useState<LaunchProgress | null>(launchStore.progress);
+  const cancelledRef = useRef(false);
+
+  useEffect(() => {
+    const unsub = launchStore.subscribe(() => {
+      setLaunching(launchStore.launching);
+      setLaunchProgress(launchStore.progress);
+    });
+    return unsub;
+  }, []);
 
   // Load accounts + installed versions on mount
   useEffect(() => {
     loadAccounts();
     loadVersions();
-  }, []);
-
-  // Subscribe to launch progress
-  useEffect(() => {
-    if (!window.electronAPI) return;
-    const cleanup = window.electronAPI.launch.onProgress((p) => {
-      setLaunchProgress(p);
-      if (p.stage === 'done') setLaunching(false);
-      if (p.stage === 'error') setLaunching(false);
-    });
-    return cleanup;
   }, []);
 
   const loadAccounts = useCallback(async () => {
@@ -115,35 +116,60 @@ export default function LaunchPage() {
   // ── Version handlers ──
   const handleLaunch = useCallback(async () => {
     if (!selectedVersion || !window.electronAPI) return;
-    setLaunching(true);
-    setLaunchProgress({ stage: 'start', percent: 0, message: '准备启动…' });
+    if (!currentAccount) {
+      setLaunchProgress({ stage: 'error', percent: 0, error: t('launch.need_account') });
+      return;
+    }
+    cancelledRef.current = false;
+    const iconPath = resolveIcon(loadVersionSettings(selectedVersion.id).iconLaunch, selectedVersion.loader);
+    launchStore.start(selectedVersion.id, iconPath);
     try {
       const settings = loadLaunchSettings();
       const result = await window.electronAPI.launch.game(
         selectedVersion.id,
-        currentAccount?.name ?? 'Player',
+        currentAccount.name,
         {
           memoryMB: settings.memoryMB,
           jvmArgs: settings.jvmArgs,
           gameArgs: settings.gameArgs,
+          isolation: settings.isolation,
+          javaPath: settings.javaPath ?? undefined,
         },
       );
-      if (!result.success && result.error) {
-        setLaunchProgress({ stage: 'error', percent: 0, error: result.error });
+      if (!cancelledRef.current && !result.success && result.error) {
+        launchStore.setProgress({ stage: 'error', percent: 0, error: result.error });
       }
     } catch (err) {
-      setLaunchProgress({ stage: 'error', percent: 0, error: String(err) });
-    } finally {
-      setLaunching(false);
+      if (!cancelledRef.current) {
+        launchStore.setProgress({ stage: 'error', percent: 0, error: String(err) });
+      }
     }
-  }, [selectedVersion, currentAccount]);
+  }, [selectedVersion, currentAccount, t]);
+
+  const handleCancelLaunch = useCallback(() => {
+    cancelledRef.current = true;
+    if (window.electronAPI) window.electronAPI.launch.stop();
+    launchStore.cancel();
+  }, []);
+
+  const [showDirs, setShowDirs] = useState(false);
+  const [gameDirs, setGameDirs] = useState<string[]>([]);
+
+  const loadGameDirs = useCallback(async () => {
+    if (window.electronAPI) setGameDirs(await window.electronAPI.gameDirs.getAll());
+  }, []);
+
+  useEffect(() => {
+    loadGameDirs();
+  }, [loadGameDirs]);
 
   const handleAddFolder = useCallback(async () => {
     if (window.electronAPI) {
       await window.electronAPI.gameDirs.add();
       loadVersions();
+      loadGameDirs();
     }
-  }, [loadVersions]);
+  }, [loadVersions, loadGameDirs]);
 
   const handleCardClick = useCallback((v: MinecraftVersion) => {
     setDetailVersion(v);
@@ -162,7 +188,70 @@ export default function LaunchPage() {
     );
   }
 
+  // ── Launching view (page-relative; sidebar stays usable) ──
+  if (launching) {
+    return (
+      <div className="page launch-page">
+        <LaunchingView
+          version={selectedVersion?.id ?? launchStore.versionId ?? ''}
+          progress={launchProgress}
+          onCancel={handleCancelLaunch}
+          iconPath={launchStore.iconPath ?? undefined}
+        />
+      </div>
+    );
+  }
+
   const hasVersions = versions.length > 0;
+
+  // ── Fullscreen "added directories" manager ──
+  if (showDirs) {
+    return (
+      <div className="page launch-page">
+        <div className="added-dirs-view">
+          <button className="version-detail-back" onClick={() => setShowDirs(false)} style={{ marginBottom: 20 }}>
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <path d="M11 4L6 9l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span>{t('common.back')}</span>
+          </button>
+
+          <h2 className="page-title" style={{ marginBottom: 16 }}>
+            {t('launch.manage_dirs')}
+          </h2>
+
+          <div className="added-dirs-list">
+            {gameDirs.length === 0 && <p className="launch-empty-hint">{t('launch.no_versions')}</p>}
+            {gameDirs.map((dir) => (
+              <div key={dir} className="added-dir-row">
+                <span className="added-dir-path" title={dir}>
+                  {dir}
+                </span>
+                <button
+                  className="btn btn--small btn--outline"
+                  onClick={() => window.electronAPI?.openPath(dir)}
+                >
+                  {t('version.open_dir')}
+                </button>
+                <button
+                  className="btn btn--small btn--ghost"
+                  onClick={async () => {
+                    if (!window.electronAPI) return;
+                    if (!window.confirm(t('launch.remove_dir_confirm'))) return;
+                    await window.electronAPI.gameDirs.remove(dir);
+                    loadGameDirs();
+                    loadVersions();
+                  }}
+                >
+                  {t('common.remove')}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="page launch-page">
@@ -181,6 +270,14 @@ export default function LaunchPage() {
       <div className="launch-row launch-row--actions">
         <div className="launch-actions-left">
           <VersionSelector versions={versions} selected={selectedVersion} onSelect={setSelectedVersion} />
+          <label className="isolation-toggle" title={t('launch.isolation')}>
+            <input
+              type="checkbox"
+              checked={loadLaunchSettings().isolation}
+              onChange={(e) => saveLaunchSettings({ ...loadLaunchSettings(), isolation: e.target.checked })}
+            />
+            <span>{t('launch.isolation')}</span>
+          </label>
           <button
             className="btn btn--primary btn--launch"
             disabled={!selectedVersion || launching}
@@ -203,6 +300,9 @@ export default function LaunchPage() {
         <div className="launch-actions-right">
           <button className="btn btn--outline btn--small" onClick={handleAddFolder}>
             {t('launch_page.add_existing')}
+          </button>
+          <button className="btn btn--outline btn--small" onClick={() => setShowDirs(true)}>
+            {t('launch.manage_dirs')}
           </button>
         </div>
       </div>

@@ -7,41 +7,58 @@ export type DownloadProgressCallback = (percent: number) => void;
 
 /**
  * Download a file to disk (via a temp file, atomically renamed on success).
- * Follows redirects, rejects on non-2xx responses, and reports progress when
- * the server provides a Content-Length header.
+ * Follows redirects (including relative ones), retries transient errors, and
+ * reports progress when the server provides a Content-Length header.
  */
 export function downloadFile(url: string, dest: string, onProgress?: DownloadProgressCallback): Promise<void> {
   const tmp = dest + '.tmp';
-  const cleanup = (): void => {
-    try {
-      fs.unlinkSync(tmp);
-    } catch {}
-  };
   fs.mkdirSync(path.dirname(dest), { recursive: true });
 
   return new Promise((resolve, reject) => {
-    const attempt = (u: string): void => {
+    let settled = false;
+
+    const cleanup = (): void => {
+      try {
+        fs.unlinkSync(tmp);
+      } catch {}
+    };
+    const fail = (err: Error): void => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(err);
+    };
+    const succeed = (): void => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+
+    const attempt = (u: string, times = 0): void => {
       const mod = u.startsWith('https:') ? https : http;
       const req = mod.get(u, (res) => {
         const status = res.statusCode ?? 0;
 
-        // Follow redirects (Mojang resources occasionally redirect)
+        // Follow redirects (Mojang/OptiFine mirrors redirect, sometimes to a
+        // relative path like "/maven/..." — resolve against the current URL).
         if (status === 301 || status === 302 || status === 307 || status === 308) {
           res.resume();
           const loc = res.headers.location;
           if (!loc) {
-            cleanup();
-            reject(new Error('HTTP redirect without Location header'));
+            fail(new Error('HTTP redirect without Location header'));
             return;
           }
-          attempt(loc);
+          attempt(new URL(loc, u).toString(), times);
           return;
         }
 
         if (status < 200 || status >= 300) {
           res.resume();
-          cleanup();
-          reject(new Error(`HTTP ${status}`));
+          if (times < 3) {
+            setTimeout(() => attempt(u, times + 1), 800 * (times + 1));
+          } else {
+            fail(new Error(`HTTP ${status}`));
+          }
           return;
         }
 
@@ -50,6 +67,7 @@ export function downloadFile(url: string, dest: string, onProgress?: DownloadPro
         const file = fs.createWriteStream(tmp);
 
         res.on('data', (chunk: Buffer) => {
+          if (settled) return;
           downloaded += chunk.length;
           file.write(chunk);
           if (total > 0) onProgress?.(Math.round((downloaded / total) * 100));
@@ -57,21 +75,27 @@ export function downloadFile(url: string, dest: string, onProgress?: DownloadPro
 
         res.on('end', () => {
           file.end(() => {
-            fs.renameSync(tmp, dest);
-            resolve();
+            try {
+              fs.renameSync(tmp, dest);
+              succeed();
+            } catch (err) {
+              fail(err instanceof Error ? err : new Error(String(err)));
+            }
           });
         });
 
         res.on('error', (err) => {
-          cleanup();
           file.destroy();
-          reject(err);
+          fail(err);
         });
       });
 
       req.on('error', (err) => {
-        cleanup();
-        reject(err);
+        if (times < 3) {
+          setTimeout(() => attempt(u, times + 1), 800 * (times + 1));
+        } else {
+          fail(err);
+        }
       });
     };
 

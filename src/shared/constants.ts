@@ -25,6 +25,7 @@ export const IPC_CHANNELS = {
   // Dialog
   SHOW_ALERT: 'dialog:show-alert',
   OPEN_DIRECTORY: 'dialog:open-directory',
+  OPEN_FILE: 'dialog:open-file',
 
   // Window controls
   WINDOW_MINIMIZE: 'window:minimize',
@@ -41,7 +42,7 @@ export const IPC_CHANNELS = {
   TERRACOTTA_START: 'terracotta:start',
   TERRACOTTA_JOIN: 'terracotta:join',
   TERRACOTTA_STOP: 'terracotta:stop',
-  TERRACOTTA_SCAN: 'terracotta:scan',
+  TERRACOTTA_PLAYERS: 'terracotta:players',
   TERRACOTTA_PERMISSION_ERROR: 'terracotta:permission-error',
 
   // Downloader
@@ -51,6 +52,24 @@ export const IPC_CHANNELS = {
 
   // Shell
   SHELL_OPEN_PATH: 'shell:open-path',
+  SHELL_OPEN_EXTERNAL: 'shell:open-external',
+
+  // Modrinth mod browser
+  MODRINTH_DOWNLOAD: 'modrinth:download',
+  MODRINTH_PROGRESS: 'modrinth:progress',
+
+  // Logs
+  LOGS_GET: 'logs:get',
+  LOGS_CLEAR: 'logs:clear',
+  LOGS_APPEND: 'logs:append',
+  LOGS_OPEN_FOLDER: 'logs:open-folder',
+
+  // Mod loader install
+  LOADER_INSTALL: 'loader:install',
+  LOADER_PROGRESS: 'loader:progress',
+
+  // Modpack export
+  MODPACK_EXPORT: 'modpack:export',
 
   // Background image
   BG_IMAGE_OPEN: 'bg:open-file',
@@ -63,6 +82,8 @@ export const IPC_CHANNELS = {
   GAME_DIR_REMOVE: 'game-dir:remove',
   GAME_DIR_GET_VERSION_PATH: 'game-dir:get-version-path',
   GAME_DIR_SCAN_VERSIONS: 'game-dir:scan-versions',
+  GAME_DIR_DELETE_VERSION: 'game-dir:delete-version',
+  GAME_DIR_COMPLETE_FILES: 'game-dir:complete-files',
 
   // Accounts
   ACCOUNTS_LIST: 'accounts:list',
@@ -87,6 +108,7 @@ export const NAV_ITEMS = [
   { key: 'launch', label: '启动' },
   { key: 'download', label: '下载' },
   { key: 'multiplayer', label: '联机' },
+  { key: 'logs', label: '日志' },
   { key: 'settings', label: '设置' },
 ] as const;
 
@@ -160,7 +182,7 @@ export const VANILLA_CARD_BG = 'rgba(124, 184, 124, 0.08)';
 
 /* ── Shared IPC payload types (single source of truth for main/preload/renderer) ── */
 
-export type LaunchStage = 'java' | 'resolve' | 'libraries' | 'assets' | 'natives' | 'launch' | 'done' | 'error';
+export type LaunchStage = 'start' | 'java' | 'resolve' | 'libraries' | 'assets' | 'natives' | 'launch' | 'done' | 'error';
 
 export interface LaunchProgress {
   stage: LaunchStage;
@@ -195,11 +217,102 @@ export interface UpdateStatus {
   message?: string;
 }
 
+/** A single result from the Modrinth search API. */
+export interface ModrinthHit {
+  project_id: string;
+  slug: string;
+  title: string;
+  description: string;
+  icon_url?: string;
+  downloads: number;
+  date_modified?: string;
+}
+
+/** A downloadable file for a Modrinth project version. */
+export interface ModrinthFile {
+  filename: string;
+  url: string;
+  size: number;
+  primary?: boolean;
+}
+
+export interface ModrinthDownloadRequest {
+  url: string;
+  filename: string;
+  gameDir: string;
+  /** Modrinth project id, echoed back in progress events for UI matching. */
+  projectId?: string;
+}
+
+export interface ModrinthDownloadResult {
+  success: boolean;
+  path?: string;
+  error?: string;
+}
+
+export interface ModrinthProgress {
+  projectId?: string;
+  filename: string;
+  percent: number;
+  stage: 'downloading' | 'done' | 'error';
+  error?: string;
+}
+
+export type LoaderKey = 'fabric' | 'forge' | 'neoforge' | 'quilt' | 'optifine';
+
+export interface LoaderInstallProgress {
+  loader: LoaderKey;
+  gameVersion: string;
+  stage: string;
+  percent: number;
+  message?: string;
+}
+
+export interface ModpackExportOptions {
+  includeMods: boolean;
+  includeResourcepacks: boolean;
+  includeShaders: boolean;
+  includeSaves: boolean;
+  includeScreenshots: boolean;
+  includeOptions: boolean;
+}
+
+/** A Minecraft server discovered via the real LAN multicast protocol. */
 export interface LanGame {
   motd: string;
+  /** Source address the announcement arrived from. */
   host: string;
   port: number;
   worldName: string;
+}
+
+/** A player profile tracked by the Scaffolding room protocol. */
+export interface RoomPlayer {
+  machineId: string;
+  name: string;
+  vendor: string;
+  kind: 'HOST' | 'GUEST';
+}
+
+export type ConnectionDifficulty = 'UNKNOWN' | 'EASIEST' | 'SIMPLE' | 'MEDIUM' | 'TOUGH';
+
+export interface TerracottaStartResult {
+  success: boolean;
+  inviteCode: string | null;
+  mcPort?: number;
+  error?: string;
+}
+
+export interface TerracottaJoinResult {
+  success: boolean;
+  connectAddr?: string;
+  difficulty?: ConnectionDifficulty;
+  error?: string;
+}
+
+export interface TerracottaPlayersResult {
+  players: RoomPlayer[];
+  connected: boolean;
 }
 
 /** A version found on disk by scanning the configured game directories. */

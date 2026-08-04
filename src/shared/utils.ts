@@ -11,12 +11,18 @@ export interface LaunchSettings {
   memoryMB: number;
   jvmArgs: string[];
   gameArgs: string[];
+  /** Version isolation: each version uses its own folder for saves/mods/… */
+  isolation: boolean;
+  /** Custom Java executable path (empty = auto-detect). */
+  javaPath: string | null;
 }
 
 export const DEFAULT_LAUNCH_SETTINGS: LaunchSettings = {
   memoryMB: 2048,
   jvmArgs: [],
   gameArgs: [],
+  isolation: true,
+  javaPath: null,
 };
 
 const LAUNCH_SETTINGS_KEY = 'rlv_launch_settings';

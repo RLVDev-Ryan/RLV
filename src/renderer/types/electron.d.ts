@@ -2,8 +2,16 @@ import type {
   Account,
   DownloadProgress,
   InstalledVersionInfo,
-  LanGame,
   LaunchProgress,
+  LoaderInstallProgress,
+  LoaderKey,
+  ModpackExportOptions,
+  ModrinthDownloadRequest,
+  ModrinthDownloadResult,
+  ModrinthProgress,
+  TerracottaJoinResult,
+  TerracottaPlayersResult,
+  TerracottaStartResult,
   UpdateStatus,
   VersionManifestEntry,
 } from '../../shared/constants';
@@ -20,12 +28,10 @@ export interface AccountAPI {
 }
 
 export interface TerracottaAPI {
-  start: (
-    port?: number,
-  ) => Promise<{ success: boolean; inviteCode: string | null; noGames?: boolean; gameCount?: number }>;
-  join: (inviteCode: string) => Promise<{ success: boolean }>;
+  start: (port?: number) => Promise<TerracottaStartResult>;
+  join: (inviteCode: string) => Promise<TerracottaJoinResult>;
   stop: () => Promise<{ success: boolean }>;
-  scan: () => Promise<{ games: LanGame[] }>;
+  players: () => Promise<TerracottaPlayersResult>;
 }
 
 export interface GameDirsAPI {
@@ -35,18 +41,20 @@ export interface GameDirsAPI {
   remove: (dir: string) => Promise<string[]>;
   getVersionPath: (versionId: string) => Promise<string>;
   scanVersions: () => Promise<InstalledVersionInfo[]>;
+  deleteVersion: (versionId: string) => Promise<{ success: boolean; error?: string }>;
+  completeFiles: (versionId: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 export interface LaunchAPI {
   game: (
     versionId: string,
     playerName: string,
-    options?: { memoryMB?: number; jvmArgs?: string[]; gameArgs?: string[] },
+    options?: { memoryMB?: number; jvmArgs?: string[]; gameArgs?: string[]; isolation?: boolean; javaPath?: string },
   ) => Promise<{ success: boolean; error?: string }>;
   stop: () => Promise<{ success: boolean }>;
   exportScript: (
     versionId: string,
-    options?: { memoryMB?: number; jvmArgs?: string[]; gameArgs?: string[] },
+    options?: { memoryMB?: number; jvmArgs?: string[]; gameArgs?: string[]; isolation?: boolean; javaPath?: string },
   ) => Promise<{ success: boolean; path?: string; error?: string }>;
   onProgress: (callback: (progress: LaunchProgress) => void) => () => void;
 }
@@ -63,12 +71,35 @@ export interface DownloadAPI {
   onProgress: (callback: (progress: DownloadProgress) => void) => () => void;
 }
 
+export interface ModrinthAPI {
+  download: (req: ModrinthDownloadRequest) => Promise<ModrinthDownloadResult>;
+  onProgress: (callback: (progress: ModrinthProgress) => void) => () => void;
+}
+
+export interface LogsAPI {
+  get: () => Promise<string[]>;
+  clear: () => Promise<{ success: boolean }>;
+  openFolder: () => Promise<{ success: boolean; error?: string }>;
+  onAppend: (callback: (line: string) => void) => () => void;
+}
+
+export interface LoaderAPI {
+  install: (loader: LoaderKey, gameVersion: string) => Promise<{ success: boolean; versionId?: string; error?: string }>;
+  onProgress: (callback: (p: LoaderInstallProgress) => void) => () => void;
+}
+
+export interface ModpackAPI {
+  export: (versionId: string, options: ModpackExportOptions) => Promise<{ success: boolean; path?: string; error?: string }>;
+}
+
 export interface ElectronAPI {
   getAppVersion: () => Promise<string>;
   getPlatform: () => Promise<NodeJS.Platform>;
   showAlert: (message: string) => Promise<void>;
   openDirectory: () => Promise<string | null>;
+  openFile: () => Promise<string | null>;
   openPath: (targetPath: string) => Promise<{ success: boolean; error?: string }>;
+  openExternal: (url: string) => Promise<{ success: boolean; error?: string }>;
   openBgImage: () => Promise<string | null>;
   readBgImage: (filePath: string) => Promise<string | null>;
   copyToClipboard: (text: string) => void;
@@ -81,6 +112,10 @@ export interface ElectronAPI {
   download: DownloadAPI;
   updater: UpdateAPI;
   launch: LaunchAPI;
+  modrinth: ModrinthAPI;
+  logs: LogsAPI;
+  loader: LoaderAPI;
+  modpack: ModpackAPI;
 }
 
 declare global {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useI18n, type I18nKey } from '../hooks/useI18n';
-import type { VersionManifestEntry } from '../../shared/constants';
+import type { VersionManifestEntry, LoaderInstallProgress } from '../../shared/constants';
+import ModrinthSearch from '../components/ModrinthSearch';
 
 type FilterTab = 'release' | 'snapshot' | 'old_beta' | 'old_alpha';
 
@@ -20,7 +21,171 @@ const FILTERS: { key: FilterTab; labelKey: I18nKey }[] = [
   { key: 'old_alpha', labelKey: 'download.old' },
 ];
 
+/** Circular-hub categories around the central "game" button. */
+const HUB_ITEMS = [
+  { key: 'mod', icon: '🧩', labelKey: 'download.cat.mod' },
+  { key: 'shader', icon: '🌞', labelKey: 'download.cat.shader' },
+  { key: 'resourcepack', icon: '🎨', labelKey: 'download.cat.resourcepack' },
+  { key: 'datapack', icon: '📦', labelKey: 'download.cat.datapack' },
+  { key: 'modpack', icon: '🗃️', labelKey: 'download.cat.modpack' },
+  { key: 'world', icon: '🌍', labelKey: 'download.cat.world' },
+  { key: 'installer', icon: '🛠️', labelKey: 'download.cat.installer' },
+] as const;
+
+const GAME_VERSIONS = [
+  '1.21.1', '1.21', '1.20.4', '1.20.1', '1.19.4', '1.19.2',
+  '1.18.2', '1.17.1', '1.16.5', '1.12.2', '1.8.9',
+];
+
+const LOADER_OPTIONS = [
+  { value: '', labelKey: 'mods.any_loader' },
+  { value: 'fabric', labelKey: 'Fabric' },
+  { value: 'forge', labelKey: 'Forge' },
+  { value: 'neoforge', labelKey: 'NeoForge' },
+  { value: 'quilt', labelKey: 'Quilt' },
+];
+
+type View = 'hub' | 'game' | (typeof HUB_ITEMS)[number]['key'];
+
 export default function DownloadPage() {
+  const [view, setView] = useState<View>('hub');
+
+  return (
+    <div className="page download-page">
+      {view === 'hub' && <CircularHub onSelect={setView} />}
+      {view === 'game' && <GameDownloader onBack={() => setView('hub')} />}
+      {view !== 'hub' && view !== 'game' && <CategoryView category={view} onBack={() => setView('hub')} />}
+    </div>
+  );
+}
+
+/* ── Circular hub ── */
+function CircularHub({ onSelect }: { onSelect: (v: View) => void }) {
+  const { t } = useI18n();
+  const radius = 148;
+
+  return (
+    <div className="download-hub">
+      <h2 className="download-hub-title">{t('download.title')}</h2>
+      <div className="download-hub-ring">
+        {/* Center: game */}
+        <button className="hub-btn hub-btn--center" onClick={() => onSelect('game')}>
+          <span className="hub-btn-icon">🎮</span>
+          <span className="hub-btn-label">{t('download.cat.game')}</span>
+        </button>
+
+        {/* Surrounding categories */}
+        {HUB_ITEMS.map((item, i) => {
+          const angle = (i / HUB_ITEMS.length) * 2 * Math.PI - Math.PI / 2;
+          const x = Math.cos(angle) * radius;
+          const y = Math.sin(angle) * radius;
+          return (
+            <button
+              key={item.key}
+              className="hub-btn"
+              style={{ transform: `translate(${x}px, ${y}px)` }}
+              onClick={() => onSelect(item.key)}
+            >
+              <span className="hub-btn-icon">{item.icon}</span>
+              <span className="hub-btn-label">{t(item.labelKey as I18nKey)}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ── Category sub-view (Modrinth with filters) ── */
+function CategoryView({ category, onBack }: { category: string; onBack: () => void }) {
+  const { t } = useI18n();
+  const [type, setType] = useState(category);
+  const [version, setVersion] = useState('1.20.1');
+  const [loader, setLoader] = useState('');
+  const [gameDir, setGameDir] = useState('');
+
+  useEffect(() => {
+    if (!window.electronAPI) return;
+    window.electronAPI.gameDirs.getDefault().then(setGameDir);
+  }, []);
+
+  const labelKey = HUB_ITEMS.find((h) => h.key === type)?.labelKey ?? 'download.cat.mod';
+
+  return (
+    <div className="download-category">
+      <button className="version-detail-back" onClick={onBack} style={{ marginBottom: 16 }}>
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M11 4L6 9l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <span>{t('download.back')}</span>
+      </button>
+
+      <h2 className="page-title" style={{ marginBottom: 16 }}>
+        {t(labelKey as I18nKey)}
+      </h2>
+
+      {type === 'installer' ? (
+        <div className="mods-empty">
+          <span className="mods-empty-icon">🛠️</span>
+          <p>{t('download.installer_empty')}</p>
+        </div>
+      ) : (
+        <>
+          {/* Filters */}
+          <div className="download-cat-filters">
+            <select
+              className="form-input form-select"
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+              style={{ width: 130 }}
+            >
+              {HUB_ITEMS.map((h) => (
+                <option key={h.key} value={h.key}>
+                  {t(h.labelKey as I18nKey)}
+                </option>
+              ))}
+            </select>
+            <select
+              className="form-input form-select"
+              value={version}
+              onChange={(e) => setVersion(e.target.value)}
+              style={{ width: 110 }}
+            >
+              {GAME_VERSIONS.map((v) => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ))}
+            </select>
+            <select
+              className="form-input form-select"
+              value={loader}
+              onChange={(e) => setLoader(e.target.value)}
+              style={{ width: 120 }}
+            >
+              {LOADER_OPTIONS.map((l) => (
+                <option key={l.value} value={l.value}>
+                  {l.labelKey.startsWith('mods.') ? t(l.labelKey as I18nKey) : l.labelKey}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <ModrinthSearch
+            key={`${type}-${version}-${loader}`}
+            category={type}
+            gameVersion={version}
+            loader={type === 'mod' ? loader : null}
+            gameDir={gameDir}
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ── Game downloader (existing version list + detail) ── */
+function GameDownloader({ onBack }: { onBack: () => void }) {
   const { t } = useI18n();
   const [versions, setVersions] = useState<VersionManifestEntry[]>([]);
   const [filter, setFilter] = useState<FilterTab>('release');
@@ -36,6 +201,7 @@ export default function DownloadPage() {
     percent: number;
     error?: string;
   } | null>(null);
+  const [loaderProgress, setLoaderProgress] = useState<Record<string, LoaderInstallProgress>>({});
 
   useEffect(() => {
     loadVersions();
@@ -48,6 +214,23 @@ export default function DownloadPage() {
       if (p.stage === 'done' || p.stage === 'error') setDownloading(null);
     });
     return cleanup;
+  }, []);
+
+  useEffect(() => {
+    if (!window.electronAPI) return;
+    return window.electronAPI.loader.onProgress((p) => {
+      const key = `${p.loader}:${p.gameVersion}`;
+      setLoaderProgress((prev) => ({ ...prev, [key]: p }));
+      if (p.stage === 'done') {
+        setTimeout(() => {
+          setLoaderProgress((prev) => {
+            const next = { ...prev };
+            delete next[key];
+            return next;
+          });
+        }, 4000);
+      }
+    });
   }, []);
 
   const loadVersions = async () => {
@@ -72,10 +255,12 @@ export default function DownloadPage() {
   const handleDownloadVersion = useCallback(
     async (baseVersionId: string, loaderKey: string) => {
       if (!window.electronAPI) return;
-      // Loader (Fabric/Forge/NeoForge/Quilt) installation is not implemented
-      // yet — be honest instead of downloading a non-existent version.
       if (loaderKey !== 'vanilla') {
-        await window.electronAPI.showAlert(t('download.loader_not_supported'));
+        // Install a mod loader on top of the vanilla version.
+        const result = await window.electronAPI.loader.install(loaderKey as never, baseVersionId);
+        if (!result.success) {
+          await window.electronAPI.showAlert(result.error || t('download.loader_install_failed'));
+        }
         return;
       }
       const versionId = baseVersionId;
@@ -90,11 +275,10 @@ export default function DownloadPage() {
     [t],
   );
 
-  // Detail view
   if (selectedVersion) {
     const visibleLoaders = showMore ? LOADER_KEYS : LOADER_KEYS.slice(0, 4);
     return (
-      <div className="page download-page">
+      <div className="download-page">
         <button className="version-detail-back" onClick={() => setSelectedVersion(null)} style={{ marginBottom: 20 }}>
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
             <path d="M11 4L6 9l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -113,13 +297,13 @@ export default function DownloadPage() {
         <div className="download-detail-loaders">
           {visibleLoaders.map((loaderKey) => {
             const lk = loaderKey as string;
-            // Vanilla downloads the actual Mojang version; loader cards are
-            // placeholders until mod-loader installation is implemented.
             const dlKey = lk === 'vanilla' ? selectedVersion.id : `${selectedVersion.id}-${lk}`;
             const isDownloading = downloading === dlKey;
             const isDone = progress?.versionId === dlKey && progress?.stage === 'done';
             const hasError = progress?.versionId === dlKey && progress?.stage === 'error';
             const pct = progress?.versionId === dlKey ? progress.percent : 0;
+            const lp = loaderProgress[`${lk}:${selectedVersion.id}`];
+            const installing = !!lp && lp.stage !== 'done';
 
             return (
               <div key={lk} className="download-loader-card">
@@ -127,7 +311,14 @@ export default function DownloadPage() {
                   <span className="download-loader-name">{t(`download.loader.${lk}` as I18nKey)}</span>
                   <span className="download-loader-desc">{t(`download.loader.${lk}_desc` as I18nKey)}</span>
                 </div>
-                {isDownloading ? (
+                {installing ? (
+                  <div className="download-progress-tag">
+                    <span className="download-progress-bar" style={{ width: `${lp.percent}%` }} />
+                    <span className="download-progress-text">
+                      {lp.message || `${lp.percent}%`}
+                    </span>
+                  </div>
+                ) : isDownloading ? (
                   <div className="download-progress-tag">
                     <span className="download-progress-bar" style={{ width: `${pct}%` }} />
                     <span className="download-progress-text">
@@ -148,22 +339,26 @@ export default function DownloadPage() {
           })}
         </div>
 
-        {!showMore && (
-          <button
-            className="btn btn--small btn--ghost"
-            onClick={() => setShowMore(true)}
-            style={{ marginTop: 8 }}
-          >
-            {t('download.more_loaders')}
-          </button>
-        )}
+        <button
+          className="btn btn--small btn--ghost"
+          onClick={() => setShowMore(!showMore)}
+          style={{ marginTop: 8 }}
+        >
+          {showMore ? t('download.collapse_loaders') : t('download.more_loaders')}
+        </button>
       </div>
     );
   }
 
-  // List view
   return (
-    <div className="page download-page">
+    <div className="download-page">
+      <button className="version-detail-back" onClick={onBack} style={{ marginBottom: 16 }}>
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M11 4L6 9l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <span>{t('download.back')}</span>
+      </button>
+
       <div className="download-toolbar">
         <div className="download-tabs">
           {FILTERS.map((f) => (

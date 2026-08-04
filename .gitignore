@@ -2,6 +2,7 @@ node_modules/
 dist/
 release/
 *.log
+logs/
 .DS_Store
 Thumbs.db
 
@@ -20,3 +21,6 @@ Thumbs.db
 
 # ESLint cache
 .eslintcache
+
+# Claude Code local settings
+.claude/settings.local.json

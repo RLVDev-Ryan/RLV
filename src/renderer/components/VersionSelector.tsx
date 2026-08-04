@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { LOADER_META, VANILLA_ICON, VANILLA_CARD_BG, getBaseVersion } from '../../shared/constants';
+import { LOADER_META, VANILLA_CARD_BG, getBaseVersion } from '../../shared/constants';
 import type { MinecraftVersion } from '../../shared/constants';
 import { useI18n } from '../hooks/useI18n';
+import { loadVersionSettings, resolveIcon } from '../../shared/versionSettings';
 
 interface VersionSelectorProps {
   versions: MinecraftVersion[];
@@ -105,7 +106,7 @@ export default function VersionSelector({ versions, selected, onSelect }: Versio
                   <div className="version-selector-item-icon">
                     <img
                       className="version-selector-item-img"
-                      src={lm ? lm.iconPath : VANILLA_ICON}
+                      src={resolveIcon(loadVersionSettings(v.id).iconSelector, v.loader)}
                       alt={lm?.label ?? 'Vanilla'}
                       draggable={false}
                     />

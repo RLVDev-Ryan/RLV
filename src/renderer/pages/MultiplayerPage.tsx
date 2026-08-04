@@ -1,9 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useI18n } from '../hooks/useI18n';
+import { useI18n, type I18nKey } from '../hooks/useI18n';
 import { multiplayerStore } from '../stores/multiplayerStore';
-import type { LanGame } from '../../shared/constants';
+import type { RoomPlayer, ConnectionDifficulty } from '../../shared/constants';
 
 const STORAGE_KEY = 'rlv_terracotta_disclaimer';
+
+const DIFFICULTY_KEYS: Record<ConnectionDifficulty, I18nKey> = {
+  UNKNOWN: 'multiplayer.difficulty_unknown',
+  EASIEST: 'multiplayer.difficulty_easiest',
+  SIMPLE: 'multiplayer.difficulty_simple',
+  MEDIUM: 'multiplayer.difficulty_medium',
+  TOUGH: 'multiplayer.difficulty_tough',
+};
 
 export default function MultiplayerPage() {
   const { t } = useI18n();
@@ -19,8 +27,9 @@ export default function MultiplayerPage() {
   const [joinCode, setJoinCode] = useState('');
   const [createPort, setCreatePort] = useState('');
   const [message, setMessage] = useState<string | null>(null);
-  const [lanGames, setLanGames] = useState<LanGame[]>([]);
-  const [scanning, setScanning] = useState(false);
+  const [players, setPlayers] = useState<RoomPlayer[]>([]);
+  const [connectAddr, setConnectAddr] = useState<string | null>(null);
+  const [difficulty, setDifficulty] = useState<ConnectionDifficulty>('UNKNOWN');
 
   useEffect(() => {
     const unsub = multiplayerStore.subscribe(() => {
@@ -40,6 +49,29 @@ export default function MultiplayerPage() {
     }
   }, []);
 
+  // Poll the room player list while connected; if the room has gone away
+  // (easytier died), reset the local UI state to disconnected.
+  useEffect(() => {
+    if (!connected || !window.electronAPI) return;
+    const poll = async () => {
+      try {
+        const res = await window.electronAPI!.terracotta.players();
+        if (res && !res.connected) {
+          multiplayerStore.disconnect();
+          setPlayers([]);
+          setConnectAddr(null);
+          setDifficulty('UNKNOWN');
+          setMessage(t('multiplayer.room_lost'));
+          return;
+        }
+        if (res?.players) setPlayers(res.players);
+      } catch {}
+    };
+    poll();
+    const timer = setInterval(poll, 3000);
+    return () => clearInterval(timer);
+  }, [connected, t]);
+
   const handleDisclaimerConfirm = () => {
     if (dontShowAgain) localStorage.setItem(STORAGE_KEY, 'true');
     setShowDialog(false);
@@ -52,23 +84,25 @@ export default function MultiplayerPage() {
     setMessage(null);
     setCopied(false);
     try {
-      const port = createPort.trim() ? parseInt(createPort.trim(), 10) : undefined;
+      const parsed = parseInt(createPort.trim(), 10);
+      const port = Number.isInteger(parsed) && parsed > 0 && parsed < 65536 ? parsed : 25565;
       const result = await window.electronAPI.terracotta.start(port);
-      if (result.noGames) {
-        setMessage(t('multiplayer.no_room'));
-      } else if (result.success && result.inviteCode) {
+      if (result.success && result.inviteCode) {
         multiplayerStore.connect('host', result.inviteCode);
+        setConnectAddr(null);
+        setDifficulty('UNKNOWN');
+        setPlayers([]);
         window.electronAPI.copyToClipboard(result.inviteCode);
         setCopied(true);
-        setMessage(t('multiplayer.room_detected', { port: port || '默认' }));
+        setMessage(t('multiplayer.room_created'));
       } else {
-        setMessage(t('multiplayer.connect_fail'));
+        setMessage(result.error || t('multiplayer.connect_fail'));
       }
     } catch {
       setMessage(t('multiplayer.call_fail'));
     }
     setLoading(false);
-  }, [createPort]);
+  }, [createPort, t]);
 
   const handleJoinRoom = useCallback(async () => {
     if (!window.electronAPI || !joinCode.trim()) return;
@@ -78,15 +112,18 @@ export default function MultiplayerPage() {
       const result = await window.electronAPI.terracotta.join(joinCode.trim());
       if (result.success) {
         multiplayerStore.connect('guest', joinCode.trim());
+        setConnectAddr(result.connectAddr ?? null);
+        setDifficulty(result.difficulty ?? 'UNKNOWN');
+        setPlayers([]);
         setMessage(t('multiplayer.connected_success'));
       } else {
-        setMessage(t('multiplayer.join_fail'));
+        setMessage(result.error || t('multiplayer.join_fail'));
       }
     } catch {
       setMessage(t('multiplayer.join_fail'));
     }
     setLoading(false);
-  }, [joinCode]);
+  }, [joinCode, t]);
 
   const handleDisconnect = useCallback(async () => {
     if (window.electronAPI) {
@@ -96,24 +133,41 @@ export default function MultiplayerPage() {
     setCopied(false);
     setJoinCode('');
     setMessage(null);
-    setLanGames([]);
+    setPlayers([]);
+    setConnectAddr(null);
+    setDifficulty('UNKNOWN');
   }, []);
 
-  const handleScan = useCallback(async () => {
-    if (!window.electronAPI) return;
-    setScanning(true);
-    try {
-      const result = await window.electronAPI.terracotta.scan();
-      const games = result.games || [];
-      setLanGames(games);
-      if (games.length === 0) {
-        setMessage(t('multiplayer.no_games_found'));
-      } else {
-        setMessage(t('multiplayer.games_found', { count: games.length }));
-      }
-    } catch {}
-    setScanning(false);
-  }, []);
+  const renderPlayerList = () => (
+    <div className="multiplayer-players">
+      <div className="multiplayer-players-label">{t('multiplayer.players')}</div>
+      {players.length === 0 ? (
+        <div className="multiplayer-players-empty">{t('multiplayer.no_players')}</div>
+      ) : (
+        <div className="version-grid">
+          {players.map((p, i) => (
+            <div key={p.machineId || i} className="version-card" style={{ cursor: 'default' }}>
+              <div className="version-card-left">
+                <div className="version-card-icon">
+                  <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                    <circle cx="11" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                    <path d="M5 18c.6-3 3.1-4.5 6-4.5s5.4 1.5 6 4.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                  </svg>
+                </div>
+                <div className="version-card-info">
+                  <span className="version-card-name">{p.name}</span>
+                  <span className="version-card-date">
+                    {p.kind === 'HOST' ? t('multiplayer.kind_host') : t('multiplayer.kind_guest')}
+                    {p.vendor ? ` · ${p.vendor}` : ''}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="page launch-page">
@@ -224,7 +278,7 @@ export default function MultiplayerPage() {
                     onClick={handleCreateRoom}
                     disabled={loading}
                   >
-                    {loading ? t('multiplayer.scanning') : t('multiplayer.create_room')}
+                    {loading ? t('multiplayer.creating') : t('multiplayer.create_room')}
                   </button>
                 </div>
               </div>
@@ -245,7 +299,7 @@ export default function MultiplayerPage() {
             <div className="multiplayer-room">
               <div className="multiplayer-room-label">{t('multiplayer.invite_code')}</div>
               <div className="multiplayer-room-code">
-                <span className="multiplayer-room-code-text">{inviteCode?.split('-')[0] ?? ''}</span>
+                <span className="multiplayer-room-code-text">{inviteCode ?? ''}</span>
                 <button
                   className="multiplayer-room-code-copy"
                   onClick={() => {
@@ -259,7 +313,34 @@ export default function MultiplayerPage() {
                   {copied ? t('multiplayer.copied') : t('multiplayer.copy')}
                 </button>
               </div>
-              <p className="multiplayer-room-hint">{t('multiplayer.invite_hint')}</p>
+              <p className="multiplayer-room-hint">{t('multiplayer.host_hint')}</p>
+              {renderPlayerList()}
+            </div>
+          )}
+
+          {mode === 'guest' && connected && (
+            <div className="multiplayer-room">
+              <div className="multiplayer-room-label">{t('multiplayer.server_addr')}</div>
+              <div className="multiplayer-room-code">
+                <span className="multiplayer-room-code-text">{connectAddr ?? ''}</span>
+                <button
+                  className="multiplayer-room-code-copy"
+                  onClick={() => {
+                    if (connectAddr) {
+                      window.electronAPI?.copyToClipboard(connectAddr);
+                      setCopied(true);
+                      setMessage(t('multiplayer.copied_addr', { addr: connectAddr }));
+                    }
+                  }}
+                >
+                  {copied ? t('multiplayer.copied') : t('multiplayer.copy')}
+                </button>
+              </div>
+              <p className="multiplayer-room-hint">{t('multiplayer.guest_hint')}</p>
+              <div className="multiplayer-difficulty">
+                {t('multiplayer.difficulty')}: {t(DIFFICULTY_KEYS[difficulty])}
+              </div>
+              {renderPlayerList()}
             </div>
           )}
 
@@ -273,7 +354,7 @@ export default function MultiplayerPage() {
                   value={joinCode}
                   onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                   placeholder={t('multiplayer.join_hint')}
-                  maxLength={24}
+                  maxLength={64}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') handleJoinRoom();
                   }}
@@ -290,58 +371,10 @@ export default function MultiplayerPage() {
                 <button
                   className="btn btn--primary"
                   onClick={handleJoinRoom}
-                  disabled={loading || joinCode.trim().length < 10}
+                  disabled={loading || joinCode.trim().length < 20}
                 >
                   {loading ? t('multiplayer.connecting') : t('multiplayer.join')}
                 </button>
-              </div>
-            </div>
-          )}
-
-          <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
-            <button className="btn btn--outline btn--small" onClick={handleScan} disabled={scanning}>
-              {scanning ? t('multiplayer.scanning') : t('multiplayer.scan')}
-            </button>
-          </div>
-
-          {connected && lanGames.length > 0 && (
-            <div style={{ marginTop: 16 }}>
-              <div className="version-grid">
-                {lanGames.map((g, i) => (
-                  <button
-                    key={i}
-                    className="version-card"
-                    onClick={() => {
-                      window.electronAPI?.copyToClipboard(`${g.host}:${g.port}`);
-                      setMessage(t('multiplayer.copied_addr', { addr: `${g.host}:${g.port}` }));
-                    }}
-                  >
-                    <div className="version-card-left">
-                      <div className="version-card-icon">
-                        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-                          <rect
-                            x="3"
-                            y="3"
-                            width="16"
-                            height="16"
-                            rx="4"
-                            stroke="currentColor"
-                            strokeWidth="1.5"
-                            fill="none"
-                          />
-                          <path d="M8 11l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                        </svg>
-                      </div>
-                      <div className="version-card-info">
-                        <span className="version-card-name">{g.worldName || t('multiplayer.unknown_world')}</span>
-                        <span className="version-card-date">
-                          {g.host}:{g.port}
-                        </span>
-                      </div>
-                    </div>
-                    <span className="version-card-tag version-card-tag--release">{t('multiplayer.join')}</span>
-                  </button>
-                ))}
               </div>
             </div>
           )}

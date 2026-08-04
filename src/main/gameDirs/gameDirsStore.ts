@@ -146,3 +146,17 @@ export function getVersionDir(versionId: string): string {
   // Fall back to default dir
   return path.join(getDefaultDir(), 'versions', versionId);
 }
+
+/** Delete a version's folder from whichever game dir contains it. */
+export function deleteVersion(versionId: string): { success: boolean; error?: string } {
+  const versionDir = getVersionDir(versionId);
+  if (!fs.existsSync(versionDir)) {
+    return { success: false, error: '版本文件夹不存在' };
+  }
+  try {
+    fs.rmSync(versionDir, { recursive: true, force: true });
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
