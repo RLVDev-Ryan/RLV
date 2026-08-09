@@ -1,97 +1,106 @@
-# Ryan's Launcher Vibe (RLV)
+A modern Minecraft launcher built with Electron + React + TypeScript.
 
-一个现代化的 Minecraft 启动器，基于 Electron + React + TypeScript 构建。
+✨ Features
+🚀 Launch — Manage multiple Minecraft versions with support for custom game directories
 
-## ✨ 特性
+📥 Download — Download game versions from official Mojang sources, supporting Vanilla / Fabric / Forge / NeoForge / Quilt loaders
 
-- 🚀 **启动** — 管理多个 Minecraft 版本，支持自定义游戏目录
-- 📥 **下载** — 从 Mojang 官方源下载游戏版本，支持原版 / Fabric / Forge / NeoForge / Quilt 加载器
-- 🌐 **联机** — 基于 EasyTier 的 P2P 虚拟局域网，配合 Minecraft 局域网协议
-- ⚙️ **设置** — 深浅色主题、自定义背景图、自定义字体（思源宋体 / 黑体 / 枫叶等宽）、多语言
-- 👤 **账户** — 微软登录 / Yggdrasil 外置登录（Little Skin）
-- 🔄 **自动更新** — 基于 electron-updater + GitHub Releases
+🌐 Multiplayer — P2P virtual LAN based on EasyTier, integrated with Minecraft's LAN protocol
 
-## 🛠️ 技术栈
+⚙️ Settings — Light/Dark themes, custom background images, custom fonts (Source Han Serif / Sans / Maple Mono), and multi-language support
 
-- **Electron** 28 + TypeScript + React 18
-- **Vite** 5 构建渲染进程
-- **electron-builder** 打包
-- **@xmcl/user** 认证
-- **@azure/msal-node** 微软 OAuth
-- **EasyTier** P2P 组网
-- **electron-updater** 自动更新
+👤 Accounts — Microsoft login / Yggdrasil third-party login (Little Skin)
 
-## 🚀 开发
+🔄 Auto-update — Powered by electron-updater + GitHub Releases
 
-```bash
+🛠️ Tech Stack
+Electron 28 + TypeScript + React 18
+
+Vite 5 for renderer process builds
+
+electron-builder for packaging
+
+@xmcl/user for authentication
+
+@azure/msal-node for Microsoft OAuth
+
+EasyTier for P2P networking
+
+electron-updater for auto-updates
+
+🚀 Development
+bash
 npm install
 npm run dev
-```
+📦 Build
+bash
+npm run build      # Compile TS + Vite
+npm run dist:win   # Package Windows installer
+🙏 Acknowledgements
+Open-source Launcher Projects Referenced
+Project	Purpose
+Hello Minecraft! Launcher (HMCL)	Multiplayer (Terracotta) integration, version management, settings UI reference
+PCL2 (Plain Craft Launcher 2)	UI style, loader icon reference
+X Minecraft Launcher (XMCL)	Main process / renderer process architecture reference
+RMCL	Multiplayer and account logic reference
+YNG Client	Microsoft OAuth2 login flow reference
+Core Dependencies
+Electron — Cross-platform desktop framework
 
-## 📦 构建
+React — UI framework
 
-```bash
-npm run build      # 编译 TS + Vite
-npm run dist:win   # 打包 Windows 安装器
-```
+Vite — Build tool
 
-## 🙏 鸣谢
+TypeScript — Language
 
-### 参考的开源启动器项目
+electron-builder — Packaging
 
-| 项目 | 用途 |
-|------|------|
-| [Hello Minecraft! Launcher (HMCL)](https://github.com/HMCL-dev/HMCL) | 联机（Terracotta）集成、版本管理、设置界面参考 |
-| [PCL2 (Plain Craft Launcher 2)](https://github.com/Hex-Dragon/PCL2) | UI 风格、加载器图标参考 |
-| [X Minecraft Launcher (XMCL)](https://github.com/Voxelum/x-minecraft-launcher) | 主进程/渲染进程架构参考 |
-| [RMCL](https://github.com/Asho5kan/RMCL) | 联机与账户逻辑参考 |
-| [YNG Client](https://github.com/yng-nctd/YNG-Client) | 微软 OAuth2 登录流程参考 |
+electron-updater — Auto-updates
 
-### 核心依赖库
+@xmcl/user — Microsoft / Yggdrasil authentication
 
-- [Electron](https://www.electronjs.org/) — 跨平台桌面框架
-- [React](https://react.dev/) — UI 框架
-- [Vite](https://vitejs.dev/) — 构建工具
-- [TypeScript](https://www.typescriptlang.org/) — 语言
-- [electron-builder](https://www.electron.build/) — 打包
-- [electron-updater](https://www.electron.build/auto-update) — 自动更新
-- [@xmcl/user](https://github.com/Voxelum/minecraft-launcher-core-node) — 微软 / Yggdrasil 认证
-- [@azure/msal-node](https://github.com/AzureAD/microsoft-authentication-library-for-js) — 微软 OAuth
-- [lucide-react](https://lucide.dev/) — 图标
-- [ESLint](https://eslint.org/) / [Prettier](https://prettier.io/) — 代码规范
+@azure/msal-node — Microsoft OAuth
 
-### 字体（SIL OFL 1.1）
+lucide-react — Icons
 
-- [Noto Serif CJK（思源宋体）](https://github.com/notofonts/noto-cjk)
-- [Noto Sans CJK（思源黑体）](https://github.com/notofonts/noto-cjk)
-- [Noto Sans Mono CJK（思源等宽）](https://github.com/notofonts/noto-cjk)
-- [Maple Mono NF CN（枫叶等宽）](https://github.com/subframe7536/maple-font)
+ESLint / Prettier — Code quality
 
-### 联机方案
+Fonts (SIL OFL 1.1)
+Noto Serif CJK (Source Han Serif)
 
-- [EasyTier](https://easytier.cn/) — P2P 虚拟局域网
-- [Terracotta（陶瓦联机）](https://github.com/burningtnt/Terracotta) — HMCL 联机协议参考
+Noto Sans CJK (Source Han Sans)
 
-### 资料与 API
+Noto Sans Mono CJK (Source Han Mono)
 
-- [Mojang 版本清单 API](https://piston-meta.mojang.com/mc/game/version_manifest_v2.json)
-- [Minecraft Wiki（wiki.vg 协议）](https://minecraft.wiki/)
-- [GitHub](https://github.com/)
-- [npmmirror 二进制镜像](https://npmmirror.com/) — electron-builder 构建工具加速
+Maple Mono NF CN
 
-## 📜 开源协议
+Multiplayer Solutions
+EasyTier — P2P virtual LAN
 
-本项目基于 [MIT License](LICENSE) 开源。
+Terracotta — HMCL multiplayer protocol reference
 
-### 字体许可
+References & APIs
+Mojang Version Manifest API
 
-内置字体均基于 **SIL Open Font License 1.1** 许可，允许自由再分发和嵌入。详见：
+Minecraft Wiki (wiki.vg protocol)
 
-- [思源宋体 / 黑体 / 等宽（Noto CJK）](licenses/fonts/notoserif/LICENSE)
-- [枫叶等宽（Maple Mono NF CN）](licenses/fonts/maplemono/LICENSE.txt)
-- [思源黑体（Noto Sans CJK）](licenses/fonts/notosans/LICENSE)
+GitHub
 
-## ⚠️ 声明
+npmmirror Binary Mirrors — Accelerated downloads for electron-builder build tools
 
-- 陶瓦联机（Terracotta / EasyTier）为第三方开源软件
-- 请遵守您所在国家与地区的法律法规
+📜 License
+This project is open-sourced under the MIT License.
+
+Font Licenses
+The bundled fonts are licensed under the SIL Open Font License 1.1, which permits free redistribution and embedding. See:
+
+Source Han Serif / Sans / Mono (Noto CJK)
+
+Maple Mono NF CN
+
+Source Han Sans (Noto Sans CJK)
+
+⚠️ Disclaimer
+Terracotta / EasyTier are third-party open-source software
+
+Please comply with the laws and regulations of your country and region
