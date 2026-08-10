@@ -6,9 +6,11 @@
  * (`userData/fonts`) and served to the renderer via the `rlv-font:` protocol.
  */
 
-/** GitHub Pages base URL for font files (override via RLV_FONT_BASE_URL). */
+/** GitHub Pages base URL for font files (override via RLV_FONT_BASE_URL).
+ *  Guarded so this shared module also loads in the renderer (no `process` there). */
 export const FONT_BASE_URL: string =
-  process.env.RLV_FONT_BASE_URL || 'https://rlvdev-ryan.github.io/RLV-fonts';
+  (typeof process !== 'undefined' && process.env && process.env.RLV_FONT_BASE_URL) ||
+  'https://rlvdev-ryan.github.io/RLV-fonts';
 
 /** The bundled default font (黑体 / sans-serif). */
 export const DEFAULT_FONT = 'Noto Sans CJK SC';
