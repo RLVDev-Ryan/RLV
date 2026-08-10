@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { app, BrowserWindow, ipcMain, dialog, clipboard, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, clipboard, shell, protocol } from 'electron';
 import { createMainWindow } from './windows/mainWindow';
 import { IPC_CHANNELS } from '../shared/constants';
 import type { Account, ModrinthDownloadRequest, ModrinthProgress } from '../shared/constants';
@@ -22,6 +22,7 @@ import { downloadFile } from './downloader/downloadFile';
 import { installLogger, getLogs, clearLogs, setLoggerWindow } from './logger';
 import { installLoader } from './installer/loaderInstaller';
 import { exportModpack } from './modpack/modpackExporter';
+import { isFontCached, downloadFont, cancelFontDownload, registerFontProtocol } from './fonts/fontManager';
 import type { LoaderKey, LoaderInstallProgress, ModpackExportOptions } from '../shared/constants';
 import { initAutoUpdater, downloadUpdate, quitAndInstall, setUpdaterWindow } from './updater/updater';
 import {
@@ -46,6 +47,11 @@ let mainWindow: BrowserWindow | null = null;
 // Disable hardware acceleration — fixes Win+Shift+S screenshot not working
 // (Electron GPU process can interfere with Windows screenshot compositor)
 app.disableHardwareAcceleration();
+
+// Custom scheme for serving downloaded fonts to the renderer.
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'rlv-font', privileges: { secure: true, standard: true, supportFetchAPI: true, stream: true } },
+]);
 
 // Capture main-process console output for the Logs page.
 installLogger();
@@ -298,6 +304,27 @@ function registerIpcHandlers(): void {
     }
   });
 
+  // ── On-demand fonts ──
+  ipcMain.handle(IPC_CHANNELS.FONT_IS_CACHED, (_event, family: string) => ({
+    cached: isFontCached(family),
+  }));
+  ipcMain.handle(IPC_CHANNELS.FONT_DOWNLOAD, async (_event, family: string) => {
+    try {
+      await downloadFont(family, (percent) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send(IPC_CHANNELS.FONT_PROGRESS, { family, percent });
+        }
+      });
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : String(err), cancelled: (err as Error).message.includes('取消') };
+    }
+  });
+  ipcMain.handle(IPC_CHANNELS.FONT_CANCEL, () => {
+    cancelFontDownload();
+    return { success: true };
+  });
+
   // ── Modpack export ──
   ipcMain.handle(
     IPC_CHANNELS.MODPACK_EXPORT,
@@ -457,6 +484,7 @@ app.whenReady().then(() => {
   mainWindow = createMainWindow();
   setMainWindow(mainWindow);
   setLoggerWindow(mainWindow);
+  registerFontProtocol();
   setUpdaterWindow(mainWindow);
   initAutoUpdater();
 

@@ -2,41 +2,10 @@
    RLV — Global Styles
    ============================================================ */
 
-/* ── @font-face — Noto Serif CJK locale variants ── */
-@font-face { font-family: 'Noto Serif CJK SC'; src: url('/assets/fonts/NotoSerifSC-VF.ttf') format('truetype'); font-weight: 100 900; font-display: swap; }
-@font-face { font-family: 'Noto Serif CJK TC'; src: url('/assets/fonts/NotoSerifTC-VF.ttf') format('truetype'); font-weight: 100 900; font-display: swap; }
-@font-face { font-family: 'Noto Serif CJK JP'; src: url('/assets/fonts/NotoSerifJP-VF.ttf') format('truetype'); font-weight: 100 900; font-display: swap; }
-@font-face { font-family: 'Noto Serif CJK KR'; src: url('/assets/fonts/NotoSerifKR-VF.ttf') format('truetype'); font-weight: 100 900; font-display: swap; }
-@font-face { font-family: 'Noto Serif CJK HK'; src: url('/assets/fonts/NotoSerifHK-VF.ttf') format('truetype'); font-weight: 100 900; font-display: swap; }
-@font-face { font-family: 'Maple Mono NF CN Thin'; src: url('/assets/fonts/MapleMono-NF-CN-Thin.ttf') format('truetype'); font-display: swap; }
-@font-face { font-family: 'Maple Mono NF CN Thin Italic'; src: url('/assets/fonts/MapleMono-NF-CN-ThinItalic.ttf') format('truetype'); font-display: swap; }
-@font-face { font-family: 'Maple Mono NF CN ExtraLight'; src: url('/assets/fonts/MapleMono-NF-CN-ExtraLight.ttf') format('truetype'); font-display: swap; }
-@font-face { font-family: 'Maple Mono NF CN ExtraLight Italic'; src: url('/assets/fonts/MapleMono-NF-CN-ExtraLightItalic.ttf') format('truetype'); font-display: swap; }
-@font-face { font-family: 'Maple Mono NF CN Light'; src: url('/assets/fonts/MapleMono-NF-CN-Light.ttf') format('truetype'); font-display: swap; }
-@font-face { font-family: 'Maple Mono NF CN Light Italic'; src: url('/assets/fonts/MapleMono-NF-CN-LightItalic.ttf') format('truetype'); font-display: swap; }
-@font-face { font-family: 'Maple Mono NF CN Regular'; src: url('/assets/fonts/MapleMono-NF-CN-Regular.ttf') format('truetype'); font-display: swap; }
-@font-face { font-family: 'Maple Mono NF CN Italic'; src: url('/assets/fonts/MapleMono-NF-CN-Italic.ttf') format('truetype'); font-display: swap; }
-@font-face { font-family: 'Maple Mono NF CN Medium'; src: url('/assets/fonts/MapleMono-NF-CN-Medium.ttf') format('truetype'); font-display: swap; }
-@font-face { font-family: 'Maple Mono NF CN Medium Italic'; src: url('/assets/fonts/MapleMono-NF-CN-MediumItalic.ttf') format('truetype'); font-display: swap; }
-@font-face { font-family: 'Maple Mono NF CN SemiBold'; src: url('/assets/fonts/MapleMono-NF-CN-SemiBold.ttf') format('truetype'); font-display: swap; }
-@font-face { font-family: 'Maple Mono NF CN SemiBold Italic'; src: url('/assets/fonts/MapleMono-NF-CN-SemiBoldItalic.ttf') format('truetype'); font-display: swap; }
-@font-face { font-family: 'Maple Mono NF CN Bold'; src: url('/assets/fonts/MapleMono-NF-CN-Bold.ttf') format('truetype'); font-display: swap; }
-@font-face { font-family: 'Maple Mono NF CN Bold Italic'; src: url('/assets/fonts/MapleMono-NF-CN-BoldItalic.ttf') format('truetype'); font-display: swap; }
-@font-face { font-family: 'Maple Mono NF CN ExtraBold'; src: url('/assets/fonts/MapleMono-NF-CN-ExtraBold.ttf') format('truetype'); font-display: swap; }
-@font-face { font-family: 'Maple Mono NF CN ExtraBold Italic'; src: url('/assets/fonts/MapleMono-NF-CN-ExtraBoldItalic.ttf') format('truetype'); font-display: swap; }
+/* ── @font-face — only the default 黑体 is bundled; others download on demand ── */
 @font-face { font-family: 'Noto Sans CJK SC'; src: url('/assets/fonts/NotoSansCJKsc-Regular.otf') format('opentype'); font-weight: 400; font-display: swap; }
 @font-face { font-family: 'Noto Sans CJK SC'; src: url('/assets/fonts/NotoSansCJKsc-Medium.otf') format('opentype'); font-weight: 500; font-display: swap; }
 @font-face { font-family: 'Noto Sans CJK SC'; src: url('/assets/fonts/NotoSansCJKsc-Bold.otf') format('opentype'); font-weight: 700; font-display: swap; }
-@font-face { font-family: 'Noto Sans CJK TC'; src: url('/assets/fonts/NotoSansCJKtc-Regular.otf') format('opentype'); font-weight: 400; font-display: swap; }
-@font-face { font-family: 'Noto Sans CJK TC'; src: url('/assets/fonts/NotoSansCJKtc-Bold.otf') format('opentype'); font-weight: 700; font-display: swap; }
-@font-face { font-family: 'Noto Sans CJK JP'; src: url('/assets/fonts/NotoSansCJKjp-Regular.otf') format('opentype'); font-weight: 400; font-display: swap; }
-@font-face { font-family: 'Noto Sans CJK JP'; src: url('/assets/fonts/NotoSansCJKjp-Bold.otf') format('opentype'); font-weight: 700; font-display: swap; }
-@font-face { font-family: 'Noto Sans CJK KR'; src: url('/assets/fonts/NotoSansCJKkr-Regular.otf') format('opentype'); font-weight: 400; font-display: swap; }
-@font-face { font-family: 'Noto Sans CJK KR'; src: url('/assets/fonts/NotoSansCJKkr-Bold.otf') format('opentype'); font-weight: 700; font-display: swap; }
-@font-face { font-family: 'Noto Sans CJK HK'; src: url('/assets/fonts/NotoSansCJKhk-Regular.otf') format('opentype'); font-weight: 400; font-display: swap; }
-@font-face { font-family: 'Noto Sans CJK HK'; src: url('/assets/fonts/NotoSansCJKhk-Bold.otf') format('opentype'); font-weight: 700; font-display: swap; }
-@font-face { font-family: 'Noto Sans Mono CJK SC'; src: url('/assets/fonts/NotoSansMonoCJKsc-Regular.otf') format('opentype'); font-weight: 400; font-display: swap; }
-@font-face { font-family: 'Noto Sans Mono CJK SC'; src: url('/assets/fonts/NotoSansMonoCJKsc-Bold.otf') format('opentype'); font-weight: 700; font-display: swap; }
 
 /* ---------- Reset & Base ---------- */
 *,
@@ -3375,4 +3344,40 @@ body,
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+/* Font on-demand download banner */
+.font-download-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-glow);
+  border-radius: var(--radius-sm);
+}
+.font-download-name {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.font-download-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border-subtle);
+  overflow: hidden;
+}
+.font-download-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.2s ease;
+}
+.font-download-pct {
+  font-size: 12px;
+  color: var(--text-muted);
+  min-width: 36px;
+  text-align: right;
 }

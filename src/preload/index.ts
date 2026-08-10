@@ -126,6 +126,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke(IPC_CHANNELS.MODPACK_EXPORT, versionId, options),
   },
 
+  // ── On-demand fonts ──
+  fonts: {
+    isCached: (family: string): Promise<{ cached: boolean }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.FONT_IS_CACHED, family),
+    download: (family: string): Promise<{ success: boolean; error?: string; cancelled?: boolean }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.FONT_DOWNLOAD, family),
+    cancel: (): Promise<{ success: boolean }> => ipcRenderer.invoke(IPC_CHANNELS.FONT_CANCEL),
+    onProgress: (callback: (p: { family: string; percent: number }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, p: { family: string; percent: number }) => callback(p);
+      ipcRenderer.on(IPC_CHANNELS.FONT_PROGRESS, handler);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.FONT_PROGRESS, handler);
+    },
+  },
+
   // ── Background image ──
   openBgImage: (): Promise<string | null> => ipcRenderer.invoke(IPC_CHANNELS.BG_IMAGE_OPEN),
   readBgImage: (filePath: string): Promise<string | null> => ipcRenderer.invoke(IPC_CHANNELS.BG_IMAGE_READ, filePath),

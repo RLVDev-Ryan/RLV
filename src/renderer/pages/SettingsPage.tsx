@@ -2,38 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { themeStore, type ThemeSettings } from '../stores/themeStore';
 import { useI18n, type I18nKey } from '../hooks/useI18n';
 import { CREDITS, type CreditDetail } from '../data/credits';
+import { DEFAULT_FONT, FONT_MANIFEST, FONT_OPTIONS } from '../../shared/fonts';
+import { fontStore, injectFontFace } from '../stores/fontStore';
 
 type SettingsTab = 'personalization' | 'language' | 'about';
-
-const FONT_OPTIONS = [
-  'Noto Serif CJK SC',
-  'Noto Serif CJK TC',
-  'Noto Serif CJK JP',
-  'Noto Serif CJK KR',
-  'Noto Serif CJK HK',
-  'Noto Sans CJK SC',
-  'Noto Sans CJK TC',
-  'Noto Sans CJK JP',
-  'Noto Sans CJK KR',
-  'Noto Sans CJK HK',
-  'Noto Sans Mono CJK SC',
-  'Maple Mono NF CN Thin',
-  'Maple Mono NF CN Thin Italic',
-  'Maple Mono NF CN ExtraLight',
-  'Maple Mono NF CN ExtraLight Italic',
-  'Maple Mono NF CN Light',
-  'Maple Mono NF CN Light Italic',
-  'Maple Mono NF CN Regular',
-  'Maple Mono NF CN Italic',
-  'Maple Mono NF CN Medium',
-  'Maple Mono NF CN Medium Italic',
-  'Maple Mono NF CN SemiBold',
-  'Maple Mono NF CN SemiBold Italic',
-  'Maple Mono NF CN Bold',
-  'Maple Mono NF CN Bold Italic',
-  'Maple Mono NF CN ExtraBold',
-  'Maple Mono NF CN ExtraBold Italic',
-] as const;
 
 const TABS: { key: SettingsTab; labelKey: I18nKey; icon: React.ReactNode }[] = [
   { key: 'personalization', labelKey: 'settings.personalization', icon: 'assets/icons/custom-icon.png' },
@@ -116,6 +88,55 @@ function LanguageSection({
   onThemeChange: (p: Partial<ThemeSettings>) => void;
 }) {
   const { t } = useI18n();
+  const [fontProgress, setFontProgress] = useState(fontStore.downloading ? fontStore.percent : 0);
+  const [fontBusy, setFontBusy] = useState(fontStore.downloading);
+
+  useEffect(() => {
+    const unsub = fontStore.subscribe(() => {
+      setFontBusy(fontStore.downloading);
+      setFontProgress(fontStore.percent);
+    });
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    if (!window.electronAPI) return;
+    return window.electronAPI.fonts.onProgress((p) => {
+      fontStore._progress(p);
+    });
+  }, []);
+
+  /** Ensure a font is available (download on demand), then apply it. */
+  const selectFont = useCallback(
+    async (value: string, apply: () => void) => {
+      if (!window.electronAPI) {
+        apply();
+        return;
+      }
+      const spec = FONT_MANIFEST[value];
+      if (!spec || spec.bundled) {
+        apply(); // bundled default — already present
+        return;
+      }
+      const { cached } = await window.electronAPI.fonts.isCached(value);
+      if (cached) {
+        injectFontFace(value);
+        apply();
+        return;
+      }
+      fontStore._begin(value);
+      const result = await window.electronAPI.fonts.download(value);
+      if (!result.cancelled && result.success) {
+        injectFontFace(value);
+        apply();
+      }
+      fontStore._end();
+    },
+    [],
+  );
+
+  const applyFont = (partial: Partial<ThemeSettings>) => onThemeChange(partial);
+
   return (
     <div className="settings-section">
       <h2 className="settings-section-title">{t('settings.language')}</h2>
@@ -163,17 +184,35 @@ function LanguageSection({
             </button>
           </div>
         </div>
+        {fontBusy && (
+          <div className="font-download-banner">
+            <span className="font-download-name">{t('settings.font.downloading', { font: fontStore.downloading ?? '' })}</span>
+            <div className="font-download-track">
+              <div className="font-download-fill" style={{ width: `${fontProgress}%` }} />
+            </div>
+            <span className="font-download-pct">{Math.round(fontProgress)}%</span>
+            <button
+              className="btn btn--small btn--danger"
+              onClick={async () => {
+                await window.electronAPI?.fonts.cancel();
+                fontStore._end();
+              }}
+            >
+              {t('settings.font.stop')}
+            </button>
+          </div>
+        )}
 
         {theme.fontMode === 'global' ? (
           <select
             className="form-input form-select"
-            value={theme.fontFamily ?? 'Noto Serif CJK SC'}
-            onChange={(e) => onThemeChange({ fontFamily: e.target.value || null })}
+            value={theme.fontFamily ?? DEFAULT_FONT}
+            onChange={(e) => selectFont(e.target.value || DEFAULT_FONT, () => applyFont({ fontFamily: e.target.value || null }))}
             style={{ marginTop: 12 }}
           >
             {FONT_OPTIONS.map((f) => (
               <option key={f} value={f}>
-                {f === 'Noto Serif CJK SC' ? `${f}（默认）` : f}
+                {f === DEFAULT_FONT ? `${f}（默认）` : f}
               </option>
             ))}
           </select>
@@ -185,8 +224,8 @@ function LanguageSection({
               </label>
               <select
                 className="form-input form-select"
-                value={theme.fontContent ?? 'Noto Serif CJK SC'}
-                onChange={(e) => onThemeChange({ fontContent: e.target.value || null })}
+                value={theme.fontContent ?? DEFAULT_FONT}
+                onChange={(e) => selectFont(e.target.value || DEFAULT_FONT, () => applyFont({ fontContent: e.target.value || null }))}
               >
                 {FONT_OPTIONS.map((f) => (
                   <option key={f} value={f}>
@@ -201,8 +240,8 @@ function LanguageSection({
               </label>
               <select
                 className="form-input form-select"
-                value={theme.fontButtons ?? 'Noto Serif CJK SC'}
-                onChange={(e) => onThemeChange({ fontButtons: e.target.value || null })}
+                value={theme.fontButtons ?? DEFAULT_FONT}
+                onChange={(e) => selectFont(e.target.value || DEFAULT_FONT, () => applyFont({ fontButtons: e.target.value || null }))}
               >
                 {FONT_OPTIONS.map((f) => (
                   <option key={f} value={f}>
@@ -217,8 +256,8 @@ function LanguageSection({
               </label>
               <select
                 className="form-input form-select"
-                value={theme.fontLogs ?? 'Noto Serif CJK SC'}
-                onChange={(e) => onThemeChange({ fontLogs: e.target.value || null })}
+                value={theme.fontLogs ?? DEFAULT_FONT}
+                onChange={(e) => selectFont(e.target.value || DEFAULT_FONT, () => applyFont({ fontLogs: e.target.value || null }))}
               >
                 {FONT_OPTIONS.map((f) => (
                   <option key={f} value={f}>

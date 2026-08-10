@@ -142,7 +142,7 @@
   "settings.language.en": "English",
   "settings.personalization.desc": "런처 외형 사용자 지정",
   "settings.bg.placeholder": "이미지 경로 붙여넣기…",
-  "settings.font.placeholder": "Noto Serif CJK SC",
+  "settings.font.placeholder": "Noto Sans CJK SC",
   "multiplayer.disclaimer.checkbox": "다음에 다시 표시하지 않음",
   "multiplayer.disclaimer.text1": "이 멀티플레이 기능은 오픈 소스 프로젝트 EasyTier(Apache-2.0)를 기반으로 합니다. 문제가 발생하면 관련 채널을 통해 피드백을 보내주세요.",
   "multiplayer.disclaimer.text2": "멀티플레이는 P2P 기술을 사용합니다. 연결 성공 후 방에 있는 사용자 간에 직접 연결되며, 타사 서버를 통해 트래픽이 전달되지 않습니다. 최종 경험은 참가자의 네트워크 상태에 따라 달라집니다.",
@@ -307,5 +307,7 @@
   "version.export_wip": "모드팩 내보내기 기능은 개발 중입니다",
   "version.icon_crop": "아이콘 자르기",
   "version.icon_crop_hint": "상자를 드래그해 이동, 오른쪽 아래 모서리로 크기 조절",
-  "version.exporting": "내보내는 중…"
+  "version.exporting": "내보내는 중…",
+  "settings.font.downloading": "폰트 {font} 다운로드 중…",
+  "settings.font.stop": "중지"
 }

@@ -3,12 +3,13 @@ export type AppLocale = 'zh-CN' | 'zh-TW' | 'ja' | 'ko' | 'en';
 
 import { emitLocaleChange } from './localeBridge';
 
+// Default font is 黑体 (sans-serif); serif/Maple are downloaded on demand.
 const LOCALE_FONT: Record<AppLocale, string> = {
-  'zh-CN': 'Noto Serif CJK SC',
-  'zh-TW': 'Noto Serif CJK TC',
-  ja: 'Noto Serif CJK JP',
-  ko: 'Noto Serif CJK KR',
-  en: 'Noto Serif CJK SC',
+  'zh-CN': 'Noto Sans CJK SC',
+  'zh-TW': 'Noto Sans CJK TC',
+  ja: 'Noto Sans CJK JP',
+  ko: 'Noto Sans CJK KR',
+  en: 'Noto Sans CJK SC',
 };
 
 export type FontZoneMode = 'global' | 'zone';

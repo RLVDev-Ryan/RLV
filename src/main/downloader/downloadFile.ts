@@ -10,7 +10,12 @@ export type DownloadProgressCallback = (percent: number) => void;
  * Follows redirects (including relative ones), retries transient errors, and
  * reports progress when the server provides a Content-Length header.
  */
-export function downloadFile(url: string, dest: string, onProgress?: DownloadProgressCallback): Promise<void> {
+export function downloadFile(
+  url: string,
+  dest: string,
+  onProgress?: DownloadProgressCallback,
+  signal?: { aborted: boolean },
+): Promise<void> {
   const tmp = dest + '.tmp';
   fs.mkdirSync(path.dirname(dest), { recursive: true });
 
@@ -68,6 +73,12 @@ export function downloadFile(url: string, dest: string, onProgress?: DownloadPro
 
         res.on('data', (chunk: Buffer) => {
           if (settled) return;
+          if (signal?.aborted) {
+            res.destroy();
+            file.destroy();
+            fail(new Error('下载已取消'));
+            return;
+          }
           downloaded += chunk.length;
           file.write(chunk);
           if (total > 0) onProgress?.(Math.round((downloaded / total) * 100));

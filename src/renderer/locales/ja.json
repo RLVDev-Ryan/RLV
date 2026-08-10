@@ -142,7 +142,7 @@
   "settings.language.en": "English",
   "settings.personalization.desc": "ランチャーの外観をカスタマイズ",
   "settings.bg.placeholder": "画像パスを貼り付け…",
-  "settings.font.placeholder": "Noto Serif CJK SC",
+  "settings.font.placeholder": "Noto Sans CJK SC",
   "multiplayer.disclaimer.checkbox": "次回から表示しない",
   "multiplayer.disclaimer.text1": "このマルチプレイ機能はオープンソースプロジェクト EasyTier（Apache-2.0）を基盤としています。問題が発生した場合は、関連チャンネルからフィードバックをお願いします。",
   "multiplayer.disclaimer.text2": "マルチプレイは P2P 技術を使用しています。接続成功後、ルーム内のユーザーは直接接続され、サードパーティのサーバーを介してトラフィックが転送されることはありません。最終的な体験は参加者のネットワーク状況に大きく依存します。",
@@ -307,5 +307,7 @@
   "version.export_wip": "Modpack のエクスポート機能は開発中です",
   "version.icon_crop": "アイコンを切り抜き",
   "version.icon_crop_hint": "枠をドラッグして移動、右下の角でサイズ調整",
-  "version.exporting": "エクスポート中…"
+  "version.exporting": "エクスポート中…",
+  "settings.font.downloading": "フォント {font} をダウンロード中…",
+  "settings.font.stop": "停止"
 }

@@ -71,6 +71,12 @@ export const IPC_CHANNELS = {
   // Modpack export
   MODPACK_EXPORT: 'modpack:export',
 
+  // On-demand fonts
+  FONT_IS_CACHED: 'font:is-cached',
+  FONT_DOWNLOAD: 'font:download',
+  FONT_CANCEL: 'font:cancel',
+  FONT_PROGRESS: 'font:progress',
+
   // Background image
   BG_IMAGE_OPEN: 'bg:open-file',
   BG_IMAGE_READ: 'bg:read-file',

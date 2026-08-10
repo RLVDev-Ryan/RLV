@@ -156,7 +156,7 @@
   "settings.language.en": "English",
   "settings.personalization.desc": "自定义启动器外观",
   "settings.bg.placeholder": "粘贴图片路径…",
-  "settings.font.placeholder": "Noto Serif CJK SC",
+  "settings.font.placeholder": "Noto Sans CJK SC",
   "multiplayer.disclaimer.checkbox": "下次打开不再弹出",
   "multiplayer.disclaimer.text1": "本联机功能基于开源项目 EasyTier（Apache-2.0 许可），您在使用过程中所遇到的问题请通过相关渠道进行反馈。",
   "multiplayer.disclaimer.text2": "联机使用 P2P 技术，联机成功后房间内用户之间将直接连接，不会使用第三方服务器对您的流量进行转发。最终联机体验和参与联机者的网络情况有较大关系。",
@@ -307,5 +307,7 @@
   "version.export_wip": "整合包导出功能开发中，敬请期待",
   "version.icon_crop": "裁剪图标",
   "version.icon_crop_hint": "拖动方框调整位置，拖右下角调整大小",
-  "version.exporting": "导出中…"
+  "version.exporting": "导出中…",
+  "settings.font.downloading": "正在下载字体 {font}…",
+  "settings.font.stop": "停止"
 }

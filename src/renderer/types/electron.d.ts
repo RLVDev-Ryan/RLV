@@ -92,6 +92,13 @@ export interface ModpackAPI {
   export: (versionId: string, options: ModpackExportOptions) => Promise<{ success: boolean; path?: string; error?: string }>;
 }
 
+export interface FontsAPI {
+  isCached: (family: string) => Promise<{ cached: boolean }>;
+  download: (family: string) => Promise<{ success: boolean; error?: string; cancelled?: boolean }>;
+  cancel: () => Promise<{ success: boolean }>;
+  onProgress: (callback: (p: { family: string; percent: number }) => void) => () => void;
+}
+
 export interface ElectronAPI {
   getAppVersion: () => Promise<string>;
   getPlatform: () => Promise<NodeJS.Platform>;
@@ -116,6 +123,7 @@ export interface ElectronAPI {
   logs: LogsAPI;
   loader: LoaderAPI;
   modpack: ModpackAPI;
+  fonts: FontsAPI;
 }
 
 declare global {

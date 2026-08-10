@@ -142,7 +142,7 @@
   "settings.language.en": "English",
   "settings.personalization.desc": "Customize the launcher appearance",
   "settings.bg.placeholder": "Paste image path…",
-  "settings.font.placeholder": "Noto Serif CJK SC",
+  "settings.font.placeholder": "Noto Sans CJK SC",
   "multiplayer.disclaimer.checkbox": "Don't show this again",
   "multiplayer.disclaimer.text1": "This multiplayer feature is based on the open-source project EasyTier (Apache-2.0). Please provide feedback through relevant channels if you encounter any issues.",
   "multiplayer.disclaimer.text2": "Multiplayer uses P2P technology. After a successful connection, users in the room will connect directly without traffic being forwarded through third-party servers. The final experience largely depends on the network conditions of participants.",
@@ -307,5 +307,7 @@
   "version.export_wip": "Modpack export is under development",
   "version.icon_crop": "Crop icon",
   "version.icon_crop_hint": "Drag the box to move it, drag the corner to resize",
-  "version.exporting": "Exporting…"
+  "version.exporting": "Exporting…",
+  "settings.font.downloading": "Downloading font {font}…",
+  "settings.font.stop": "Stop"
 }
