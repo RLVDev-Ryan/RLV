@@ -309,5 +309,22 @@
   "version.icon_crop_hint": "拖动方框调整位置，拖右下角调整大小",
   "version.exporting": "导出中…",
   "settings.font.downloading": "正在下载字体 {font}…",
-  "settings.font.stop": "停止"
+  "settings.font.stop": "停止",
+  "settings.ui.title": "界面设置",
+  "settings.ui.radius": "按钮圆角",
+  "settings.ui.blur": "模糊度",
+  "settings.ui.opacity": "透明度",
+  "settings.picture.title": "背景图设置",
+  "settings.picture.scale_mode": "缩放模式",
+  "settings.picture.cover": "铺满",
+  "settings.picture.contain": "适应",
+  "settings.picture.fill": "拉伸",
+  "settings.music.title": "音乐设置",
+  "settings.music.enable": "启用背景音乐",
+  "settings.music.volume": "音量",
+  "settings.music.playlist": "音乐文件夹",
+  "settings.music.playlist_placeholder": "选择存放音乐的文件夹…",
+  "settings.config_dir": "配置文件目录",
+  "settings.open_config_dir": "打开配置目录",
+  "settings.open_data_dir": "打开数据目录"
 }

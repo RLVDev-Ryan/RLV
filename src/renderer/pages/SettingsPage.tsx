@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { themeStore, type ThemeSettings } from '../stores/themeStore';
+import { themeStore, applyTheme, type ThemeSettings } from '../stores/themeStore';
 import { useI18n, type I18nKey } from '../hooks/useI18n';
 import { CREDITS, type CreditDetail } from '../data/credits';
 import { DEFAULT_FONT, FONT_MANIFEST, FONT_OPTIONS } from '../../shared/fonts';
 import { fontStore, injectFontFace } from '../stores/fontStore';
+import { configStore } from '../stores/configStore';
 
 type SettingsTab = 'personalization' | 'language' | 'about';
 
@@ -431,6 +432,32 @@ function PersonalizationSection({
     if (e.key === 'Enter') handleHexSubmit();
   };
 
+  // ── .js config-driven UI (ui / picture / music) ──
+  const [uiCfg, setUiCfg] = useState(() => configStore.get('ui'));
+  const [picCfg, setPicCfg] = useState(() => configStore.get('picture'));
+  const [musicCfg, setMusicCfg] = useState(() => configStore.get('music'));
+
+  useEffect(() => {
+    const unsub = configStore.subscribe(() => {
+      setUiCfg(configStore.get('ui'));
+      setPicCfg(configStore.get('picture'));
+      setMusicCfg(configStore.get('music'));
+    });
+    return unsub;
+  }, []);
+
+  const updateUi = (k: keyof typeof uiCfg, v: number) => {
+    configStore.update('ui', { ...configStore.get('ui'), [k]: v });
+    applyTheme(themeStore.current);
+  };
+  const updateMusic = (k: 'enabled' | 'volume' | 'playlistPath', v: unknown) => {
+    configStore.update('music', { ...configStore.get('music'), [k]: v });
+  };
+  const pickMusicDir = async () => {
+    const dir = await window.electronAPI?.openDirectory();
+    if (dir) updateMusic('playlistPath', dir);
+  };
+
   return (
     <div className="settings-section">
       <h2 className="settings-section-title">{t('settings.personalization')}</h2>
@@ -589,6 +616,119 @@ function PersonalizationSection({
               />
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* UI 设置（.js 配置） */}
+      <div className="settings-card">
+        <h3 className="settings-card-title">{t('settings.ui.title')}</h3>
+        <div className="form-group">
+          <label className="form-label">{t('settings.ui.radius')}: {uiCfg.radius}px</label>
+          <input
+            type="range"
+            className="form-range"
+            min={4}
+            max={24}
+            value={uiCfg.radius}
+            onChange={(e) => updateUi('radius', Number(e.target.value))}
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">{t('settings.ui.blur')}: {uiCfg.blur}px</label>
+          <input
+            type="range"
+            className="form-range"
+            min={0}
+            max={40}
+            value={uiCfg.blur}
+            onChange={(e) => updateUi('blur', Number(e.target.value))}
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">{t('settings.ui.opacity')}: {Math.round(uiCfg.opacity * 100)}%</label>
+          <input
+            type="range"
+            className="form-range"
+            min={50}
+            max={100}
+            value={uiCfg.opacity * 100}
+            onChange={(e) => updateUi('opacity', Number(e.target.value) / 100)}
+          />
+        </div>
+      </div>
+
+      {/* 背景图配置 */}
+      <div className="settings-card">
+        <h3 className="settings-card-title">{t('settings.picture.title')}</h3>
+        <div className="form-group">
+          <label className="form-label">{t('settings.picture.scale_mode')}</label>
+          <select
+            className="form-input form-select"
+            value={picCfg.scaleMode}
+            onChange={(e) => {
+              configStore.update('picture', {
+                ...configStore.get('picture'),
+                scaleMode: e.target.value as 'cover' | 'contain' | 'fill',
+              });
+              applyTheme(themeStore.current);
+            }}
+          >
+            <option value="cover">{t('settings.picture.cover')}</option>
+            <option value="contain">{t('settings.picture.contain')}</option>
+            <option value="fill">{t('settings.picture.fill')}</option>
+          </select>
+        </div>
+      </div>
+
+      {/* 音乐配置（.js 配置，播放器后续实现） */}
+      <div className="settings-card">
+        <h3 className="settings-card-title">{t('settings.music.title')}</h3>
+        <label className="export-checkbox">
+          <input
+            type="checkbox"
+            checked={musicCfg.enabled}
+            onChange={(e) => updateMusic('enabled', e.target.checked)}
+          />
+          <span>{t('settings.music.enable')}</span>
+        </label>
+        <div className="form-group">
+          <label className="form-label">{t('settings.music.volume')}: {musicCfg.volume}%</label>
+          <input
+            type="range"
+            className="form-range"
+            min={0}
+            max={100}
+            value={musicCfg.volume}
+            onChange={(e) => updateMusic('volume', Number(e.target.value))}
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">{t('settings.music.playlist')}</label>
+          <div className="form-input-row">
+            <input
+              className="form-input"
+              type="text"
+              value={musicCfg.playlistPath}
+              onChange={(e) => updateMusic('playlistPath', e.target.value)}
+              placeholder={t('settings.music.playlist_placeholder')}
+            />
+            <button className="btn btn--small btn--outline" onClick={pickMusicDir}>
+              {t('common.browse')}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 配置目录 */}
+      <div className="settings-card">
+        <h3 className="settings-card-title">{t('settings.config_dir')}</h3>
+        <div className="quick-actions">
+          <button className="btn btn--small btn--outline" onClick={() => window.electronAPI?.config.openDir()}>
+            {t('settings.open_config_dir')}
+          </button>
+          <button className="btn btn--small btn--outline" onClick={() => window.electronAPI?.config.openDataDir()}>
+            {t('settings.open_data_dir')}
+          </button>
         </div>
       </div>
 

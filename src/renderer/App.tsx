@@ -9,6 +9,8 @@ import LogsPage from './pages/LogsPage';
 import type { NavKey, UpdateStatus } from '../shared/constants';
 import { useI18n } from './hooks/useI18n';
 import { launchStore } from './stores/launchStore';
+import { configStore } from './stores/configStore';
+import { hydrateFromConfig } from './stores/themeStore';
 
 const pageMap: Record<NavKey, React.FC> = {
   launch: LaunchPage,
@@ -21,6 +23,11 @@ const pageMap: Record<NavKey, React.FC> = {
 export default function App() {
   const [activeNav, setActiveNav] = useState<NavKey>('launch');
   const [update, setUpdate] = useState<UpdateStatus | null>(null);
+
+  // Load the .js config files (portable/installed) and apply the theme.
+  useEffect(() => {
+    configStore.loadAll().then(() => hydrateFromConfig());
+  }, []);
 
   useEffect(() => {
     if (!window.electronAPI) return;

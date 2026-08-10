@@ -309,5 +309,22 @@
   "version.icon_crop_hint": "枠をドラッグして移動、右下の角でサイズ調整",
   "version.exporting": "エクスポート中…",
   "settings.font.downloading": "フォント {font} をダウンロード中…",
-  "settings.font.stop": "停止"
+  "settings.font.stop": "停止",
+  "settings.ui.title": "UI設定",
+  "settings.ui.radius": "ボタンの角丸",
+  "settings.ui.blur": "ぼかし",
+  "settings.ui.opacity": "不透明度",
+  "settings.picture.title": "背景画像設定",
+  "settings.picture.scale_mode": "拡大縮小モード",
+  "settings.picture.cover": "カバー",
+  "settings.picture.contain": "収める",
+  "settings.picture.fill": "伸ばす",
+  "settings.music.title": "音楽設定",
+  "settings.music.enable": "BGMを有効にする",
+  "settings.music.volume": "音量",
+  "settings.music.playlist": "音楽フォルダ",
+  "settings.music.playlist_placeholder": "音楽のあるフォルダを選択…",
+  "settings.config_dir": "設定ディレクトリ",
+  "settings.open_config_dir": "設定フォルダを開く",
+  "settings.open_data_dir": "データフォルダを開く"
 }

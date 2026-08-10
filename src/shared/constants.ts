@@ -77,6 +77,14 @@ export const IPC_CHANNELS = {
   FONT_CANCEL: 'font:cancel',
   FONT_PROGRESS: 'font:progress',
 
+  // .js config system
+  CONFIG_GET_ALL: 'config:get-all',
+  CONFIG_GET: 'config:get',
+  CONFIG_SET: 'config:set',
+  CONFIG_CHANGED: 'config:changed',
+  CONFIG_OPEN_DIR: 'config:open-dir',
+  CONFIG_OPEN_DATA_DIR: 'config:open-data-dir',
+
   // Background image
   BG_IMAGE_OPEN: 'bg:open-file',
   BG_IMAGE_READ: 'bg:read-file',

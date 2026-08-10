@@ -140,6 +140,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
     },
   },
 
+  // ── .js config system ──
+  config: {
+    getAll: (): Promise<Record<string, unknown>> => ipcRenderer.invoke(IPC_CHANNELS.CONFIG_GET_ALL),
+    get: (name: string): Promise<unknown> => ipcRenderer.invoke(IPC_CHANNELS.CONFIG_GET, name),
+    set: (name: string, data: unknown): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.CONFIG_SET, name, data),
+    openDir: (): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke(IPC_CHANNELS.CONFIG_OPEN_DIR),
+    openDataDir: (): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.CONFIG_OPEN_DATA_DIR),
+    onChanged: (callback: (e: { name: string; data: unknown }) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, e: { name: string; data: unknown }) => callback(e);
+      ipcRenderer.on(IPC_CHANNELS.CONFIG_CHANGED, handler);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.CONFIG_CHANGED, handler);
+    },
+  },
+
   // ── Background image ──
   openBgImage: (): Promise<string | null> => ipcRenderer.invoke(IPC_CHANNELS.BG_IMAGE_OPEN),
   readBgImage: (filePath: string): Promise<string | null> => ipcRenderer.invoke(IPC_CHANNELS.BG_IMAGE_READ, filePath),

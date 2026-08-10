@@ -1,7 +1,7 @@
-const STORAGE_KEY = 'rlv_theme';
 export type AppLocale = 'zh-CN' | 'zh-TW' | 'ja' | 'ko' | 'en';
 
 import { emitLocaleChange } from './localeBridge';
+import { configStore } from './configStore';
 
 // Default font is 黑体 (sans-serif); serif/Maple are downloaded on demand.
 const LOCALE_FONT: Record<AppLocale, string> = {
@@ -44,23 +44,32 @@ let current: ThemeSettings = { ...defaultTheme };
 let lightAccent = defaultTheme.accentColor;
 let _bgDataUrl: string | null = null; // cached data URL for the current bg image
 
-function load(): ThemeSettings {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return { ...defaultTheme, ...parsed };
-    }
-  } catch {}
-  return { ...defaultTheme };
-}
-
-function save(settings: ThemeSettings): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-}
-
 export function getTheme(): ThemeSettings {
   return { ...current };
+}
+
+/** Seed theme state from the .js config files (after configStore.loadAll). */
+export function hydrateFromConfig(): void {
+  const color = configStore.get('color');
+  const ui = configStore.get('ui');
+  const picture = configStore.get('picture');
+  const launcher = configStore.get('launcher');
+  current = {
+    ...defaultTheme,
+    accentColor: color.accent,
+    bgImagePath: picture.path || null,
+    mode: ui.mode,
+    buttonMode: ui.buttonMode,
+    fontFamily: ui.fontFamily,
+    fontMode: ui.fontMode,
+    fontContent: ui.fontContent,
+    fontButtons: ui.fontButtons,
+    fontLogs: ui.fontLogs,
+    locale: (launcher.language as AppLocale) || 'zh-CN',
+  };
+  if (current.mode !== 'dark') lightAccent = current.accentColor;
+  applyTheme(current);
+  loadBgImage().then(() => applyTheme(current));
 }
 
 export function setTheme(settings: Partial<ThemeSettings>): ThemeSettings {
@@ -78,7 +87,20 @@ export function setTheme(settings: Partial<ThemeSettings>): ThemeSettings {
   }
 
   current = { ...current, ...settings };
-  save(current);
+
+  // Persist to .js config files (color.js / ui.js / picture.js / launcher.js).
+  configStore.update('color', { accent: lightAccent });
+  configStore.update('picture', { ...configStore.get('picture'), path: current.bgImagePath ?? '' });
+  configStore.update('ui', {
+    mode: current.mode,
+    buttonMode: current.buttonMode,
+    fontFamily: current.fontFamily,
+    fontMode: current.fontMode,
+    fontContent: current.fontContent,
+    fontButtons: current.fontButtons,
+    fontLogs: current.fontLogs,
+  });
+  configStore.update('launcher', { ...configStore.get('launcher'), language: current.locale });
 
   // Sync locale to i18n system
   if (settings.locale && typeof window !== 'undefined') {
@@ -119,7 +141,9 @@ export function applyTheme(settings: ThemeSettings): void {
 
   // Background — use cached data URL if available
   if (_bgDataUrl) {
-    const bg = `url("${_bgDataUrl}") center/cover fixed no-repeat`;
+    const picture = configStore.get('picture');
+    const size = picture.scaleMode === 'contain' ? 'contain' : picture.scaleMode === 'fill' ? '100% 100%' : 'cover';
+    const bg = `url("${_bgDataUrl}") center/${size} fixed no-repeat`;
     root.style.background = bg;
     document.body.style.background = 'transparent';
     const rootDiv = document.getElementById('root');
@@ -130,6 +154,16 @@ export function applyTheme(settings: ThemeSettings): void {
     const rootDiv = document.getElementById('root');
     if (rootDiv) rootDiv.style.background = '';
   }
+
+  // UI config (radius / blur / opacity) — apply radius vars now; blur & opacity
+  // are exposed as --ui-* vars for the (later) glassmorphism pass.
+  const ui = configStore.get('ui');
+  root.style.setProperty('--ui-radius', `${ui.radius}px`);
+  root.style.setProperty('--ui-blur', `${ui.blur}px`);
+  root.style.setProperty('--ui-opacity', String(ui.opacity));
+  root.style.setProperty('--radius-sm', `${Math.max(2, ui.radius - 2)}px`);
+  root.style.setProperty('--radius-md', `${ui.radius}px`);
+  root.style.setProperty('--radius-lg', `${ui.radius + 4}px`);
 
   // Button mode
   if (settings.buttonMode === 'white') {
@@ -183,13 +217,9 @@ function lighten(hex: string, amount: number): string {
   return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 }
 
-// Initialize
-const saved = load();
-current = saved;
-if (current.mode !== 'dark') lightAccent = current.accentColor;
-applyTheme(saved);
-// Load bg image async (don't block init)
-loadBgImage().then(() => applyTheme(current));
+// Initialize with defaults; hydrateFromConfig() is called by the app boot
+// once configStore.loadAll() has fetched the .js configs.
+applyTheme(defaultTheme);
 
 export const themeStore = {
   get current(): ThemeSettings {

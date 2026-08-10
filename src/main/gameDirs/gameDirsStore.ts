@@ -2,8 +2,9 @@ import { app } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import type { InstalledVersionInfo, ModLoader } from '../../shared/constants';
+import { getDefaultGameDir } from '../paths';
 
-const DIRS_FILE = path.join(app.getPath('appData'), 'rlv', 'game-dirs.json');
+const DIRS_FILE = path.join(app.getPath('userData'), 'game-dirs.json');
 
 interface GameDirsStore {
   dirs: string[];
@@ -103,12 +104,10 @@ function save(store: GameDirsStore): void {
 }
 
 function getDefaultDir(): string {
-  return path.join(app.getPath('appData'), 'rlv', '.minecraft');
+  return getDefaultGameDir();
 }
 
-export function getDefaultGameDir(): string {
-  return getDefaultDir();
-}
+export { getDefaultGameDir } from '../paths';
 
 export function getAllGameDirs(): string[] {
   return load().dirs;

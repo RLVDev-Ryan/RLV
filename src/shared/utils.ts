@@ -25,19 +25,25 @@ export const DEFAULT_LAUNCH_SETTINGS: LaunchSettings = {
   javaPath: null,
 };
 
-const LAUNCH_SETTINGS_KEY = 'rlv_launch_settings';
+/**
+ * Launch settings are now owned by the .js config (launcher.js → launch).
+ * This module keeps a synchronous cache; the renderer's configStore seeds it
+ * at startup and persists changes (via the `rlv:launch-settings-changed`
+ * event → configStore.update('launcher', …)).
+ */
+let launchSettingsCache: LaunchSettings = { ...DEFAULT_LAUNCH_SETTINGS };
+
+export function initLaunchSettings(settings: LaunchSettings): void {
+  launchSettingsCache = { ...DEFAULT_LAUNCH_SETTINGS, ...settings };
+}
 
 export function loadLaunchSettings(): LaunchSettings {
-  try {
-    const raw = localStorage.getItem(LAUNCH_SETTINGS_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Partial<LaunchSettings>;
-      return { ...DEFAULT_LAUNCH_SETTINGS, ...parsed };
-    }
-  } catch {}
-  return { ...DEFAULT_LAUNCH_SETTINGS };
+  return { ...launchSettingsCache };
 }
 
 export function saveLaunchSettings(settings: LaunchSettings): void {
-  localStorage.setItem(LAUNCH_SETTINGS_KEY, JSON.stringify(settings));
+  launchSettingsCache = { ...settings };
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('rlv:launch-settings-changed', { detail: settings }));
+  }
 }

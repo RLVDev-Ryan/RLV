@@ -309,5 +309,22 @@
   "version.icon_crop_hint": "拖曳方框調整位置，拖右下角調整大小",
   "version.exporting": "匯出中…",
   "settings.font.downloading": "正在下載字型 {font}…",
-  "settings.font.stop": "停止"
+  "settings.font.stop": "停止",
+  "settings.ui.title": "介面設定",
+  "settings.ui.radius": "按鈕圓角",
+  "settings.ui.blur": "模糊度",
+  "settings.ui.opacity": "透明度",
+  "settings.picture.title": "背景圖設定",
+  "settings.picture.scale_mode": "縮放模式",
+  "settings.picture.cover": "鋪滿",
+  "settings.picture.contain": "適應",
+  "settings.picture.fill": "拉伸",
+  "settings.music.title": "音樂設定",
+  "settings.music.enable": "啟用背景音樂",
+  "settings.music.volume": "音量",
+  "settings.music.playlist": "音樂資料夾",
+  "settings.music.playlist_placeholder": "選擇存放音樂的資料夾…",
+  "settings.config_dir": "設定檔目錄",
+  "settings.open_config_dir": "開啟設定目錄",
+  "settings.open_data_dir": "開啟資料目錄"
 }

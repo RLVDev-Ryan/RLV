@@ -309,5 +309,22 @@
   "version.icon_crop_hint": "Drag the box to move it, drag the corner to resize",
   "version.exporting": "Exporting…",
   "settings.font.downloading": "Downloading font {font}…",
-  "settings.font.stop": "Stop"
+  "settings.font.stop": "Stop",
+  "settings.ui.title": "UI Settings",
+  "settings.ui.radius": "Button radius",
+  "settings.ui.blur": "Blur",
+  "settings.ui.opacity": "Opacity",
+  "settings.picture.title": "Background image",
+  "settings.picture.scale_mode": "Scale mode",
+  "settings.picture.cover": "Cover",
+  "settings.picture.contain": "Contain",
+  "settings.picture.fill": "Fill",
+  "settings.music.title": "Music",
+  "settings.music.enable": "Enable background music",
+  "settings.music.volume": "Volume",
+  "settings.music.playlist": "Music folder",
+  "settings.music.playlist_placeholder": "Choose the folder with your music…",
+  "settings.config_dir": "Config directory",
+  "settings.open_config_dir": "Open config folder",
+  "settings.open_data_dir": "Open data folder"
 }

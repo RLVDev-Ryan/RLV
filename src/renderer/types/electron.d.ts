@@ -99,6 +99,15 @@ export interface FontsAPI {
   onProgress: (callback: (p: { family: string; percent: number }) => void) => () => void;
 }
 
+export interface ConfigAPI {
+  getAll: () => Promise<Record<string, unknown>>;
+  get: (name: string) => Promise<unknown>;
+  set: (name: string, data: unknown) => Promise<{ success: boolean; error?: string }>;
+  openDir: () => Promise<{ success: boolean; error?: string }>;
+  openDataDir: () => Promise<{ success: boolean; error?: string }>;
+  onChanged: (callback: (e: { name: string; data: unknown }) => void) => () => void;
+}
+
 export interface ElectronAPI {
   getAppVersion: () => Promise<string>;
   getPlatform: () => Promise<NodeJS.Platform>;
@@ -124,6 +133,7 @@ export interface ElectronAPI {
   loader: LoaderAPI;
   modpack: ModpackAPI;
   fonts: FontsAPI;
+  config: ConfigAPI;
 }
 
 declare global {

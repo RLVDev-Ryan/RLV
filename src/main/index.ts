@@ -23,6 +23,9 @@ import { installLogger, getLogs, clearLogs, setLoggerWindow } from './logger';
 import { installLoader } from './installer/loaderInstaller';
 import { exportModpack } from './modpack/modpackExporter';
 import { isFontCached, downloadFont, cancelFontDownload, registerFontProtocol } from './fonts/fontManager';
+import { applyPortablePaths, ensureDataDirs } from './paths';
+import { getAllConfigs, loadConfig, saveConfig, configDir } from './config/configManager';
+import type { ConfigName } from '../shared/config';
 import type { LoaderKey, LoaderInstallProgress, ModpackExportOptions } from '../shared/constants';
 import { initAutoUpdater, downloadUpdate, quitAndInstall, setUpdaterWindow } from './updater/updater';
 import {
@@ -52,6 +55,10 @@ app.disableHardwareAcceleration();
 protocol.registerSchemesAsPrivileged([
   { scheme: 'rlv-font', privileges: { secure: true, standard: true, supportFetchAPI: true, stream: true } },
 ]);
+
+// Portable mode: redirect userData into .RLV next to the exe before anything
+// else touches `app.getPath('userData')` (fonts/logs/machine-id).
+applyPortablePaths();
 
 // Capture main-process console output for the Logs page.
 installLogger();
@@ -304,6 +311,39 @@ function registerIpcHandlers(): void {
     }
   });
 
+  // ── .js config system ──
+  ipcMain.handle(IPC_CHANNELS.CONFIG_GET_ALL, () => getAllConfigs());
+  ipcMain.handle(IPC_CHANNELS.CONFIG_GET, (_event, name: ConfigName) => loadConfig(name));
+  ipcMain.handle(IPC_CHANNELS.CONFIG_SET, (_event, name: ConfigName, data: unknown) => {
+    try {
+      saveConfig(name, data as never);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(IPC_CHANNELS.CONFIG_CHANGED, { name, data: loadConfig(name) });
+      }
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  });
+  ipcMain.handle(IPC_CHANNELS.CONFIG_OPEN_DIR, async () => {
+    try {
+      fs.mkdirSync(configDir(), { recursive: true });
+      const err = await shell.openPath(configDir());
+      return { success: !err, error: err || undefined };
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  });
+  ipcMain.handle(IPC_CHANNELS.CONFIG_OPEN_DATA_DIR, async () => {
+    try {
+      fs.mkdirSync(app.getPath('userData'), { recursive: true });
+      const err = await shell.openPath(app.getPath('userData'));
+      return { success: !err, error: err || undefined };
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  });
+
   // ── On-demand fonts ──
   ipcMain.handle(IPC_CHANNELS.FONT_IS_CACHED, (_event, family: string) => ({
     cached: isFontCached(family),
@@ -481,6 +521,7 @@ function registerIpcHandlers(): void {
 
 app.whenReady().then(() => {
   registerIpcHandlers();
+  ensureDataDirs();
   mainWindow = createMainWindow();
   setMainWindow(mainWindow);
   setLoggerWindow(mainWindow);
