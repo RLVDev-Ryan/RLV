@@ -99,3 +99,13 @@ npm run dist:win   # 打包 Windows 安装器
 
 - 陶瓦联机（Terracotta / EasyTier）为第三方开源软件
 - 请遵守您所在国家与地区的法律法规
+
+## 🚀 发布
+
+发布新版本（构建 + 上传安装包到 GitHub Release，自动更新即可生效）：
+
+```bash
+npm run dist:publish
+```
+
+需在环境变量中设置 `GH_TOKEN`（GitHub Personal Access Token）。版本号取自 `package.json` 的 `version`。旧版本安装的用户会自动检测到更新。
