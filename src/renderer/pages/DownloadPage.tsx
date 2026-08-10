@@ -84,7 +84,7 @@ function CircularHub({ onSelect }: { onSelect: (v: View) => void }) {
             <button
               key={item.key}
               className="hub-btn"
-              style={{ transform: `translate(${x}px, ${y}px)` }}
+              style={{ translate: `${x}px ${y}px` }}
               onClick={() => onSelect(item.key)}
             >
               <span className="hub-btn-icon">{item.icon}</span>

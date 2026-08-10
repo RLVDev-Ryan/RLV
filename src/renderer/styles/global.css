@@ -45,6 +45,8 @@
   --accent-hover: #80b5d9;
   --accent-glow: rgba(107, 155, 192, 0.25);
   --accent-bg: rgba(107, 155, 192, 0.1);
+  /* Hover glow — independent of accent so it stays visible in dark mode */
+  --hover-glow: rgba(107, 155, 192, 0.32);
 
   --danger: #e8a0a8;
   --danger-bg: rgba(232, 160, 168, 0.1);
@@ -99,6 +101,7 @@
   --border-input: rgba(200, 200, 200, 0.1);
   --border-hover: rgba(200, 200, 200, 0.12);
   --border-hover-strong: rgba(200, 200, 200, 0.15);
+  --hover-glow: rgba(130, 190, 225, 0.22);
 
   --text-primary: #cccccc;
   --text-secondary: #888888;
@@ -197,7 +200,7 @@ body,
 
 .titlebar-btn:hover {
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -249,7 +252,7 @@ body,
 
 .sidebar-item:hover {
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -318,7 +321,7 @@ body,
 .version-selector-list::-webkit-scrollbar-thumb:hover,
 .account-dropdown-list::-webkit-scrollbar-thumb:hover {
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -548,7 +551,7 @@ body,
 .account-trigger:hover {
   transform: scale(1.02);
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -642,7 +645,7 @@ body,
 .account-dropdown-add:hover {
   transform: scale(1.02);
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -688,7 +691,7 @@ body,
 .account-dropdown-item:hover {
   transform: scale(1.02);
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -755,7 +758,7 @@ body,
 
 .account-remove-btn:hover {
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -811,7 +814,7 @@ body,
 
 .dialog-back:hover {
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -841,7 +844,7 @@ body,
 
 .dialog-close:hover {
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -893,7 +896,7 @@ body,
 .auth-option:hover {
   transform: scale(1.02);
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -1024,7 +1027,7 @@ body,
 .terracotta-dialog-confirm:hover {
   transform: scale(1.02);
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -1121,7 +1124,7 @@ body,
 
 .multiplayer-tab:hover {
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -1192,7 +1195,7 @@ body,
 .multiplayer-bar-action:hover {
   transform: scale(1.02);
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -1227,7 +1230,7 @@ body,
 .multiplayer-action-btn:hover {
   transform: scale(1.02);
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -1278,7 +1281,7 @@ body,
 .multiplayer-action-card:hover {
   transform: scale(1.02);
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -1298,7 +1301,7 @@ body,
 .multiplayer-action-card .multiplayer-action-btn:hover {
   transform: scale(1.02);
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -1374,7 +1377,7 @@ body,
 
 .multiplayer-room-code-copy:hover {
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -1557,7 +1560,7 @@ body,
 .version-selector-item:hover {
   transform: scale(1.02);
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -1617,7 +1620,7 @@ body,
 .version-selector-item:hover {
   transform: scale(1.02);
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -1669,7 +1672,7 @@ body,
 .version-card:hover {
   transform: scale(1.02);
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -1777,7 +1780,7 @@ body,
 
 .version-detail-back:hover {
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -1828,7 +1831,7 @@ body,
 
 .version-detail-tab:hover {
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -2258,7 +2261,7 @@ body,
 .hub-btn:hover {
   transform: scale(1.02);
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -2368,7 +2371,7 @@ body,
 
 .mods-fallback-link:hover {
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -2502,7 +2505,7 @@ body,
 
 .form-range::-webkit-slider-thumb:hover {
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -2555,8 +2558,9 @@ body,
 }
 
 [data-btn-mode='white'] .btn--primary:hover:not(:disabled) {
+  transform: scale(1.02);
+  box-shadow: 0 0 24px var(--hover-glow);
   background: #f2f2f2;
-  box-shadow: 0 0 16px var(--accent-glow);
 }
 
 [data-btn-mode='white'] .btn--launch {
@@ -2566,8 +2570,9 @@ body,
 }
 
 [data-btn-mode='white'] .btn--launch:hover:not(:disabled) {
+  transform: scale(1.02);
+  box-shadow: 0 0 24px var(--hover-glow);
   background: #f2f2f2;
-  box-shadow: 0 0 16px var(--accent-glow);
 }
 
 .btn--primary {
@@ -2576,14 +2581,15 @@ body,
 }
 
 .btn--primary:hover:not(:disabled) {
+  transform: scale(1.02);
+  box-shadow: 0 0 24px var(--hover-glow);
   background: var(--accent-hover);
-  box-shadow: 0 0 20px var(--accent-glow);
 }
 
 .btn--primary:disabled:hover {
   transform: scale(1.02);
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -2596,6 +2602,8 @@ body,
 }
 
 .btn--outline:hover:not(:disabled) {
+  transform: scale(1.02);
+  box-shadow: 0 0 24px var(--hover-glow);
   background: var(--accent);
   color: var(--text-white);
   border-color: var(--accent);
@@ -2607,6 +2615,8 @@ body,
 }
 
 .btn--ghost:hover:not(:disabled) {
+  transform: scale(1.02);
+  box-shadow: 0 0 24px var(--hover-glow);
   background: var(--bg-hover);
   color: var(--text-primary);
 }
@@ -2617,6 +2627,8 @@ body,
 }
 
 .btn--danger:hover:not(:disabled) {
+  transform: scale(1.02);
+  box-shadow: 0 0 24px var(--hover-glow);
   background: var(--danger);
   color: var(--text-white);
 }
@@ -2637,7 +2649,7 @@ body,
 .btn--launch:hover:not(:disabled) {
   background: #333;
   transform: scale(1.02);
-  box-shadow: 0 0 24px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 0 24px var(--hover-glow);
 }
 
 .btn--launch:disabled {
@@ -2702,7 +2714,7 @@ body,
 
 .settings-sidebar-item:hover {
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -2806,7 +2818,7 @@ body,
 .credits-item--clickable:hover {
   transform: scale(1.02);
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -2857,7 +2869,7 @@ body,
 .theme-switch-btn:hover {
   transform: scale(1.02);
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -2963,7 +2975,7 @@ body,
 
 .color-picker-preset:hover {
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -2989,7 +3001,7 @@ body,
 
 .bg-image-dropzone:hover {
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -3039,7 +3051,7 @@ body,
 
 .bg-image-remove:hover {
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
@@ -3190,7 +3202,7 @@ body,
 
 .download-tab:hover {
   box-shadow:
-    0 0 24px var(--accent-glow),
+    0 0 24px var(--hover-glow),
     var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
