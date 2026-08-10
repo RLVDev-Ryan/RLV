@@ -196,8 +196,11 @@ body,
 }
 
 .titlebar-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
+  background: var(--bg-card);
+  border-color: var(--border-hover);
 }
 
 .titlebar-btn--close:hover {
@@ -245,8 +248,11 @@ body,
 }
 
 .sidebar-item:hover {
-  background: var(--bg-surface);
-  color: var(--text-primary);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
+  background: var(--bg-card);
+  border-color: var(--border-hover);
 }
 
 .sidebar-item--active {
@@ -311,7 +317,11 @@ body,
 .app-content::-webkit-scrollbar-thumb:hover,
 .version-selector-list::-webkit-scrollbar-thumb:hover,
 .account-dropdown-list::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
+  background: var(--bg-card);
+  border-color: var(--border-hover);
 }
 
 /* ============================================================
@@ -536,6 +546,10 @@ body,
 }
 
 .account-trigger:hover {
+  transform: scale(1.02);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
 }
@@ -626,7 +640,12 @@ body,
 }
 
 .account-dropdown-add:hover {
-  background: var(--accent-bg);
+  transform: scale(1.02);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
+  background: var(--bg-card);
+  border-color: var(--border-hover);
 }
 
 .account-dropdown-add-icon {
@@ -667,7 +686,12 @@ body,
 }
 
 .account-dropdown-item:hover {
-  background: var(--bg-hover);
+  transform: scale(1.02);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
+  background: var(--bg-card);
+  border-color: var(--border-hover);
 }
 
 .account-dropdown-item--active {
@@ -730,8 +754,11 @@ body,
 }
 
 .account-remove-btn:hover {
-  background: var(--danger-bg);
-  color: var(--danger);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
+  background: var(--bg-card);
+  border-color: var(--border-hover);
 }
 
 /* ============================================================
@@ -783,8 +810,11 @@ body,
 }
 
 .dialog-back:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
+  background: var(--bg-card);
+  border-color: var(--border-hover);
 }
 
 .dialog-title {
@@ -810,8 +840,11 @@ body,
 }
 
 .dialog-close:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
+  background: var(--bg-card);
+  border-color: var(--border-hover);
 }
 
 .dialog-body {
@@ -858,6 +891,10 @@ body,
 }
 
 .auth-option:hover {
+  transform: scale(1.02);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
 }
@@ -985,7 +1022,12 @@ body,
 }
 
 .terracotta-dialog-confirm:hover {
-  background: var(--bg-hover);
+  transform: scale(1.02);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
+  background: var(--bg-card);
+  border-color: var(--border-hover);
 }
 
 .terracotta-dialog-confirm:active {
@@ -1078,7 +1120,11 @@ body,
 }
 
 .multiplayer-tab:hover {
-  color: var(--text-primary);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
+  background: var(--bg-card);
+  border-color: var(--border-hover);
 }
 
 .multiplayer-tab--active {
@@ -1144,7 +1190,12 @@ body,
 }
 
 .multiplayer-bar-action:hover {
-  background: var(--danger-bg);
+  transform: scale(1.02);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
+  background: var(--bg-card);
+  border-color: var(--border-hover);
 }
 
 .multiplayer-actions {
@@ -1174,9 +1225,12 @@ body,
 }
 
 .multiplayer-action-btn:hover {
+  transform: scale(1.02);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
   background: var(--bg-card);
   border-color: var(--border-hover);
-  transform: scale(1.02);
 }
 
 .multiplayer-action-btn:active {
@@ -1226,6 +1280,7 @@ body,
   box-shadow:
     0 0 24px var(--accent-glow),
     var(--shadow-card-glow);
+  background: var(--bg-card);
   border-color: var(--border-hover);
 }
 
@@ -1241,9 +1296,12 @@ body,
 }
 
 .multiplayer-action-card .multiplayer-action-btn:hover {
-  background: var(--bg-surface);
-  transform: none;
-  box-shadow: none;
+  transform: scale(1.02);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
+  background: var(--bg-card);
+  border-color: var(--border-hover);
 }
 
 .multiplayer-create-port {
@@ -1315,8 +1373,11 @@ body,
 }
 
 .multiplayer-room-code-copy:hover {
-  background: var(--accent);
-  color: var(--text-white);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
+  background: var(--bg-card);
+  border-color: var(--border-hover);
 }
 
 .multiplayer-room-hint {
@@ -1494,7 +1555,11 @@ body,
 }
 
 .version-selector-item:hover {
-  background: var(--bg-hover);
+  transform: scale(1.02);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
+  background: var(--bg-card);
   border-color: var(--border-hover);
 }
 
@@ -1550,7 +1615,12 @@ body,
 }
 
 .version-selector-item:hover {
-  background: var(--bg-hover);
+  transform: scale(1.02);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
+  background: var(--bg-card);
+  border-color: var(--border-hover);
 }
 
 .version-selector-item--active {
@@ -1706,8 +1776,11 @@ body,
 }
 
 .version-detail-back:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
+  background: var(--bg-card);
+  border-color: var(--border-hover);
 }
 
 .version-detail-title-area {
@@ -1754,7 +1827,11 @@ body,
 }
 
 .version-detail-tab:hover {
-  color: var(--text-primary);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
+  background: var(--bg-card);
+  border-color: var(--border-hover);
 }
 
 .version-detail-tab--active {
@@ -2179,8 +2256,12 @@ body,
   transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 .hub-btn:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-  border-color: var(--accent);
+  transform: scale(1.02);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
+  background: var(--bg-card);
+  border-color: var(--border-hover);
 }
 .hub-btn--center {
   width: 104px;
@@ -2286,7 +2367,11 @@ body,
 }
 
 .mods-fallback-link:hover {
-  text-decoration: underline;
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
+  background: var(--bg-card);
+  border-color: var(--border-hover);
 }
 
 /* Export */
@@ -2416,7 +2501,11 @@ body,
 }
 
 .form-range::-webkit-slider-thumb:hover {
-  box-shadow: 0 0 12px var(--accent-glow);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
+  background: var(--bg-card);
+  border-color: var(--border-hover);
 }
 
 .form-range-labels {
@@ -2492,7 +2581,12 @@ body,
 }
 
 .btn--primary:disabled:hover {
-  box-shadow: none;
+  transform: scale(1.02);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
+  background: var(--bg-card);
+  border-color: var(--border-hover);
 }
 
 .btn--outline {
@@ -2607,8 +2701,11 @@ body,
 }
 
 .settings-sidebar-item:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
+  background: var(--bg-card);
+  border-color: var(--border-hover);
 }
 
 .settings-sidebar-item--active {
@@ -2707,7 +2804,12 @@ body,
 }
 
 .credits-item--clickable:hover {
-  background: var(--bg-hover);
+  transform: scale(1.02);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
+  background: var(--bg-card);
+  border-color: var(--border-hover);
 }
 
 .credits-name {
@@ -2753,8 +2855,12 @@ body,
 }
 
 .theme-switch-btn:hover {
+  transform: scale(1.02);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
+  background: var(--bg-card);
   border-color: var(--border-hover);
-  color: var(--text-primary);
 }
 
 .theme-switch-btn--active {
@@ -2856,8 +2962,11 @@ body,
 }
 
 .color-picker-preset:hover {
-  transform: scale(1.15);
-  border-color: var(--border-hover-strong);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
+  background: var(--bg-card);
+  border-color: var(--border-hover);
 }
 
 /* Theme preview */
@@ -2879,8 +2988,11 @@ body,
 }
 
 .bg-image-dropzone:hover {
-  border-color: var(--accent);
-  background: var(--accent-bg);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
+  background: var(--bg-card);
+  border-color: var(--border-hover);
 }
 
 .bg-image-dropzone--over {
@@ -2926,8 +3038,11 @@ body,
 }
 
 .bg-image-remove:hover {
-  background: var(--danger-bg);
-  color: var(--danger);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
+  background: var(--bg-card);
+  border-color: var(--border-hover);
 }
 
 .bg-image-actions {
@@ -3074,8 +3189,10 @@ body,
 }
 
 .download-tab:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  box-shadow:
+    0 0 24px var(--accent-glow),
+    var(--shadow-card-glow);
+  background: var(--bg-card);
   border-color: var(--border-hover);
 }
 
