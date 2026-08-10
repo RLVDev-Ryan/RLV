@@ -8,7 +8,7 @@ import { fontStore, injectFontFace } from '../stores/fontStore';
 type SettingsTab = 'personalization' | 'language' | 'about';
 
 const TABS: { key: SettingsTab; labelKey: I18nKey; icon: React.ReactNode }[] = [
-  { key: 'personalization', labelKey: 'settings.personalization', icon: 'assets/icons/custom-icon.png' },
+  { key: 'personalization', labelKey: 'settings.personalization', icon: 'assets/palette.png' },
   {
     key: 'language',
     labelKey: 'settings.language_font',

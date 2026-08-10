@@ -121,7 +121,7 @@ body,
   overflow: hidden;
   background: linear-gradient(135deg, var(--bg-deepest) 0%, var(--bg-dark) 100%) center/cover fixed no-repeat;
   color: var(--text-primary);
-  font-family: var(--app-font, 'Noto Serif CJK SC', 'Segoe UI', sans-serif);
+  font-family: var(--app-font, 'Noto Sans CJK SC', 'Segoe UI', sans-serif);
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -1876,8 +1876,11 @@ body,
 }
 
 .mods-empty-icon {
-  font-size: 40px;
-  opacity: 0.4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  opacity: 0.5;
   margin-bottom: 8px;
 }
 
@@ -1967,6 +1970,9 @@ body,
 }
 
 .mod-card-downloads {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 11px;
   color: var(--text-muted);
 }
@@ -2185,8 +2191,10 @@ body,
   border-color: var(--accent-glow);
 }
 .hub-btn-icon {
-  font-size: 26px;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
 }
 .hub-btn-label {
   font-size: 12px;

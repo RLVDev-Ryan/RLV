@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Puzzle, Sun, Palette, Package, Boxes, Globe, Wrench, Gamepad2 } from 'lucide-react';
 import { useI18n, type I18nKey } from '../hooks/useI18n';
 import type { VersionManifestEntry, LoaderInstallProgress } from '../../shared/constants';
 import ModrinthSearch from '../components/ModrinthSearch';
@@ -21,15 +22,15 @@ const FILTERS: { key: FilterTab; labelKey: I18nKey }[] = [
   { key: 'old_alpha', labelKey: 'download.old' },
 ];
 
-/** Circular-hub categories around the central "game" button. */
+/** Circular-hub categories around the central "game" button. Icons: Lucide. */
 const HUB_ITEMS = [
-  { key: 'mod', icon: '🧩', labelKey: 'download.cat.mod' },
-  { key: 'shader', icon: '🌞', labelKey: 'download.cat.shader' },
-  { key: 'resourcepack', icon: '🎨', labelKey: 'download.cat.resourcepack' },
-  { key: 'datapack', icon: '📦', labelKey: 'download.cat.datapack' },
-  { key: 'modpack', icon: '🗃️', labelKey: 'download.cat.modpack' },
-  { key: 'world', icon: '🌍', labelKey: 'download.cat.world' },
-  { key: 'installer', icon: '🛠️', labelKey: 'download.cat.installer' },
+  { key: 'mod', icon: <Puzzle size={26} />, labelKey: 'download.cat.mod' },
+  { key: 'shader', icon: <Sun size={26} />, labelKey: 'download.cat.shader' },
+  { key: 'resourcepack', icon: <Palette size={26} />, labelKey: 'download.cat.resourcepack' },
+  { key: 'datapack', icon: <Package size={26} />, labelKey: 'download.cat.datapack' },
+  { key: 'modpack', icon: <Boxes size={26} />, labelKey: 'download.cat.modpack' },
+  { key: 'world', icon: <Globe size={26} />, labelKey: 'download.cat.world' },
+  { key: 'installer', icon: <Wrench size={26} />, labelKey: 'download.cat.installer' },
 ] as const;
 
 const GAME_VERSIONS = [
@@ -70,7 +71,7 @@ function CircularHub({ onSelect }: { onSelect: (v: View) => void }) {
       <div className="download-hub-ring">
         {/* Center: game */}
         <button className="hub-btn hub-btn--center" onClick={() => onSelect('game')}>
-          <span className="hub-btn-icon">🎮</span>
+          <span className="hub-btn-icon"><Gamepad2 size={30} /></span>
           <span className="hub-btn-label">{t('download.cat.game')}</span>
         </button>
 
@@ -126,7 +127,7 @@ function CategoryView({ category, onBack }: { category: string; onBack: () => vo
 
       {type === 'installer' ? (
         <div className="mods-empty">
-          <span className="mods-empty-icon">🛠️</span>
+          <span className="mods-empty-icon"><Wrench size={32} /></span>
           <p>{t('download.installer_empty')}</p>
         </div>
       ) : (

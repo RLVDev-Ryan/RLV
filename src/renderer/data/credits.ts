@@ -58,6 +58,15 @@ export const CREDITS: CreditDetail[] = [
 
   // ── 核心依赖库 ──
   {
+    name: 'Lucide',
+    url: 'https://lucide.dev',
+    category: '依赖库',
+    license: 'ISC & MIT',
+    usage: '提供启动器界面中的全部线性图标（图标由 Lucide 提供 · 遵循 ISC 和 MIT 开源协议）。',
+    licenseRequirements: '图标遵循 ISC 与 MIT 开源协议，允许在应用内署名使用。',
+    disclaimer: 'Lucide 为开源图标库，与本启动器无关联。',
+  },
+  {
     name: 'Electron',
     url: 'https://www.electronjs.org/',
     category: '依赖库',
