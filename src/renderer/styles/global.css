@@ -3,9 +3,24 @@
    ============================================================ */
 
 /* ── @font-face — only the default 黑体 is bundled; others download on demand ── */
-@font-face { font-family: 'Noto Sans CJK SC'; src: url('/assets/fonts/NotoSansCJKsc-Regular.otf') format('opentype'); font-weight: 400; font-display: swap; }
-@font-face { font-family: 'Noto Sans CJK SC'; src: url('/assets/fonts/NotoSansCJKsc-Medium.otf') format('opentype'); font-weight: 500; font-display: swap; }
-@font-face { font-family: 'Noto Sans CJK SC'; src: url('/assets/fonts/NotoSansCJKsc-Bold.otf') format('opentype'); font-weight: 700; font-display: swap; }
+@font-face {
+  font-family: 'Noto Sans CJK SC';
+  src: url('/assets/fonts/NotoSansCJKsc-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Noto Sans CJK SC';
+  src: url('/assets/fonts/NotoSansCJKsc-Medium.otf') format('opentype');
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Noto Sans CJK SC';
+  src: url('/assets/fonts/NotoSansCJKsc-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-display: swap;
+}
 
 /* ---------- Reset & Base ---------- */
 *,
@@ -1291,20 +1306,25 @@ body,
   transform: scale(0.98);
 }
 
-/* Neutralize inner button hover inside the card */
+/* Neutralize inner button hover inside the card (the card handles the hover) */
 .multiplayer-action-card .multiplayer-action-btn {
   cursor: default;
   border: none;
   border-radius: 0;
+  box-shadow: none;
 }
 
 .multiplayer-action-card .multiplayer-action-btn:hover {
-  transform: scale(1.02);
-  box-shadow:
-    0 0 24px var(--hover-glow),
-    var(--shadow-card-glow);
+  transform: none;
+  box-shadow: none;
+  background: transparent;
+  border-color: transparent;
+}
+
+/* Hovering any part of the card lights up the whole card (top + bottom) */
+.multiplayer-action-card:hover .multiplayer-action-btn--host,
+.multiplayer-action-card:hover .multiplayer-create-port {
   background: var(--bg-card);
-  border-color: var(--border-hover);
 }
 
 .multiplayer-create-port {
@@ -2256,7 +2276,9 @@ body,
   justify-content: center;
   gap: 4px;
   cursor: pointer;
-  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+  transition:
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
 }
 .hub-btn:hover {
   transform: scale(1.02);
@@ -2405,6 +2427,89 @@ body,
   margin-top: 20px;
   padding-top: 16px;
   border-top: 1px solid var(--border-subtle);
+}
+
+/* Export: options hint + selective mod picker */
+.export-options-hint {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.export-mod-empty {
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 8px 0;
+}
+
+.mod-select-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.mod-select-count {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.mod-select-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 4px 12px;
+}
+
+.mod-select-list-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 4px;
+  position: sticky;
+  top: 0;
+  background: var(--bg-surface);
+}
+
+.mod-select-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.mod-select-link:hover {
+  text-decoration: underline;
+}
+
+.mod-select-list-sep {
+  color: var(--border-hover);
+  font-size: 12px;
+}
+
+.mod-select-item {
+  padding: 6px 0;
+}
+
+.mod-select-filename {
+  font-family: 'Cascadia Code', Consolas, monospace;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
 }
 
 /* ============================================================

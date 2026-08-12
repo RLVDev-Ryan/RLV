@@ -9,10 +9,7 @@ export function injectFontFace(family: string): void {
   const base = `rlv-font://fonts/${fontSlug(family)}`;
   const faces = spec.files
     .map((f) => {
-      const parts = [
-        `font-family:'${family}'`,
-        `src:url('${base}/${f.file}') format('${f.format}')`,
-      ];
+      const parts = [`font-family:'${family}'`, `src:url('${base}/${f.file}') format('${f.format}')`];
       if (f.weight) parts.push(`font-weight:${f.weight}`);
       if (f.style) parts.push(`font-style:${f.style}`);
       return `@font-face{${parts.join(';')}}`;

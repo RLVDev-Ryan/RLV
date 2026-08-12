@@ -15,41 +15,78 @@ function pushStatus(status: string, data?: Record<string, unknown>): void {
 }
 
 export function initAutoUpdater(): void {
-  // Don't auto-check in dev (not packaged)
-  if (!app.isPackaged) return;
+  // The updater is best-effort: a failed check must never affect app startup
+  // (the renderer's main UI loads independently of any update event).
+  try {
+    // Don't auto-check in dev (not packaged)
+    if (!app.isPackaged) return;
 
-  autoUpdater.autoDownload = false;
-  autoUpdater.autoInstallOnAppQuit = true;
+    autoUpdater.autoDownload = false;
+    autoUpdater.autoInstallOnAppQuit = true;
 
-  autoUpdater.on('checking-for-update', () => pushStatus('checking'));
-  autoUpdater.on('update-available', (info) => {
-    pushStatus('available', { version: info.version });
-  });
-  autoUpdater.on('update-not-available', () => pushStatus('not-available'));
-  autoUpdater.on('download-progress', (progressObj) => {
-    pushStatus('downloading', {
-      percent: Math.round(progressObj.percent),
-      transferred: progressObj.transferred,
-      total: progressObj.total,
+    autoUpdater.on('checking-for-update', () => pushStatus('checking'));
+    autoUpdater.on('update-available', (info) => {
+      pushStatus('available', { version: info.version });
     });
-  });
-  autoUpdater.on('update-downloaded', (info) => {
-    pushStatus('downloaded', { version: info.version });
-  });
-  autoUpdater.on('error', (err) => {
-    pushStatus('error', { message: err.message });
-  });
+    autoUpdater.on('update-not-available', () => pushStatus('not-available'));
+    autoUpdater.on('download-progress', (progressObj) => {
+      pushStatus('downloading', {
+        percent: Math.round(progressObj.percent),
+        transferred: progressObj.transferred,
+        total: progressObj.total,
+      });
+    });
+    autoUpdater.on('update-downloaded', (info) => {
+      pushStatus('downloaded', { version: info.version });
+    });
+    autoUpdater.on('error', (err) => {
+      console.error('[updater] error:', err.message);
+      pushStatus('error', { message: err.message });
+    });
 
-  // Check for updates after app ready
-  autoUpdater.checkForUpdatesAndNotify();
+    // Defer the network call a moment so startup never waits on it.
+    setTimeout(checkForUpdatesAndNotify, 1500);
+  } catch (err) {
+    console.error('[updater] init failed:', err);
+  }
+}
+
+function checkForUpdatesAndNotify(): void {
+  try {
+    // checkForUpdatesAndNotify rejects on network / release-not-found errors —
+    // surface them as a status instead of an unhandled promise rejection.
+    autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[updater] check failed:', message);
+      pushStatus('error', { message });
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[updater] check failed (sync):', message);
+    pushStatus('error', { message });
+  }
 }
 
 /** Start downloading the update. */
-export function downloadUpdate(): void {
-  autoUpdater.downloadUpdate();
+export async function downloadUpdate(): Promise<{ success: boolean; error?: string }> {
+  try {
+    await autoUpdater.downloadUpdate();
+    return { success: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[updater] download failed:', message);
+    return { success: false, error: message };
+  }
 }
 
 /** Quit and install the downloaded update. */
-export function quitAndInstall(): void {
-  autoUpdater.quitAndInstall();
+export function quitAndInstall(): { success: boolean; error?: string } {
+  try {
+    autoUpdater.quitAndInstall();
+    return { success: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[updater] install failed:', message);
+    return { success: false, error: message };
+  }
 }

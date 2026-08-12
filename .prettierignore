@@ -3,3 +3,5 @@ release/
 node_modules/
 package-lock.json
 *.log
+# GitHub Actions YAML — Prettier has no built-in YAML parser
+.github/

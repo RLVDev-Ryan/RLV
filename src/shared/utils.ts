@@ -33,17 +33,36 @@ export const DEFAULT_LAUNCH_SETTINGS: LaunchSettings = {
  */
 let launchSettingsCache: LaunchSettings = { ...DEFAULT_LAUNCH_SETTINGS };
 
+/**
+ * Coerce an unknown jvmArgs/gameArgs value into a string array.
+ * Hand-edited .js configs may store `{}`, a string, or null — all of which
+ * would crash renderers that call `.join()` (e.g. the version settings tab).
+ */
+function asStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value.filter((v): v is string => typeof v === 'string');
+  if (typeof value === 'string' && value.trim()) return value.trim().split(/\s+/);
+  return [];
+}
+
+function normalizeSettings(settings: LaunchSettings): LaunchSettings {
+  return {
+    ...settings,
+    jvmArgs: asStringArray(settings.jvmArgs),
+    gameArgs: asStringArray(settings.gameArgs),
+  };
+}
+
 export function initLaunchSettings(settings: LaunchSettings): void {
-  launchSettingsCache = { ...DEFAULT_LAUNCH_SETTINGS, ...settings };
+  launchSettingsCache = normalizeSettings({ ...DEFAULT_LAUNCH_SETTINGS, ...settings });
 }
 
 export function loadLaunchSettings(): LaunchSettings {
-  return { ...launchSettingsCache };
+  return normalizeSettings({ ...launchSettingsCache });
 }
 
 export function saveLaunchSettings(settings: LaunchSettings): void {
-  launchSettingsCache = { ...settings };
+  launchSettingsCache = normalizeSettings({ ...settings });
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('rlv:launch-settings-changed', { detail: settings }));
+    window.dispatchEvent(new CustomEvent('rlv:launch-settings-changed', { detail: launchSettingsCache }));
   }
 }

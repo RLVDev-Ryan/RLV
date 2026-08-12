@@ -11,6 +11,8 @@ files:
   - package.json
 
 win:
+  # Publisher name written into the exe / installer metadata (matches package.json author).
+  publisherName: Ryan
   target:
     - target: nsis
       arch:
@@ -37,5 +39,10 @@ publish:
   provider: github
   owner: RLVDev-Ryan
   repo: RLV
+  # Default is `draft`, which would hide every release. `release` makes
+  # `dist:publish` (and the CI tag workflow) create a public release.
+  releaseType: release
 
-# macOS and Linux configs to be added later
+# macOS and Linux targets to be added later. When they are, each platform needs
+# its own easytier binaries (resources/bin/easytier/mac, .../linux) and a
+# per-platform `extraResources` block — the current one ships the Windows exe.

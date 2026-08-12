@@ -32,8 +32,20 @@ export default function CropModal({ src, onConfirm, onCancel }: CropModalProps) 
     img.src = src;
   }, [src]);
 
-  const dragRef = useRef<{ mx: number; my: number; sx: number; sy: number; ssize: number; mode: 'move' | 'resize' | null }>({
-    mx: 0, my: 0, sx: 0, sy: 0, ssize: 0, mode: null,
+  const dragRef = useRef<{
+    mx: number;
+    my: number;
+    sx: number;
+    sy: number;
+    ssize: number;
+    mode: 'move' | 'resize' | null;
+  }>({
+    mx: 0,
+    my: 0,
+    sx: 0,
+    sy: 0,
+    ssize: 0,
+    mode: null,
   });
 
   const onMouseDown = (e: React.MouseEvent) => {
@@ -109,10 +121,7 @@ export default function CropModal({ src, onConfirm, onCancel }: CropModalProps) 
           {imgSize.w > 0 && (
             <>
               <img src={src} style={{ width: imgSize.w, height: imgSize.h }} draggable={false} />
-              <div
-                className="crop-sel"
-                style={{ left: x, top: y, width: size, height: size }}
-              >
+              <div className="crop-sel" style={{ left: x, top: y, width: size, height: size }}>
                 <div className="crop-sel-handle" />
               </div>
             </>

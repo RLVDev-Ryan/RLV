@@ -20,19 +20,9 @@ import {
   setPermissionErrorHandler,
   type EasyTierHandle,
 } from './easytier';
-import {
-  generateRoom,
-  encodeInviteCode,
-  decodeInviteCode,
-  type Room,
-} from './room';
+import { generateRoom, encodeInviteCode, decodeInviteCode, type Room } from './room';
 import { scanLanGames, startFakeServer } from './lan';
-import {
-  startScaffoldingServer,
-  ScaffoldingClient,
-  FINGERPRINT,
-  type ScaffoldingServer,
-} from './scaffolding';
+import { startScaffoldingServer, ScaffoldingClient, FINGERPRINT, type ScaffoldingServer } from './scaffolding';
 
 /**
  * RLV multiplayer orchestration.
@@ -103,9 +93,27 @@ function vendor(): string {
 
 /** Adapter-name fragments that identify virtual/VPN adapters we must skip. */
 const VIRTUAL_ADAPTER_MARKS = [
-  'radmin', 'easytier', 'easy-tier', 'virtual', 'vmware', 'vbox', 'hyper-v',
-  'vethernet', 'zerotier', 'tailscale', 'hamachi', 'wintun', 'npcap', 'tap-',
-  'loopback', 'isatap', 'teredo', '6to4', 'bluetooth', 'wsl', 'utun',
+  'radmin',
+  'easytier',
+  'easy-tier',
+  'virtual',
+  'vmware',
+  'vbox',
+  'hyper-v',
+  'vethernet',
+  'zerotier',
+  'tailscale',
+  'hamachi',
+  'wintun',
+  'npcap',
+  'tap-',
+  'loopback',
+  'isatap',
+  'teredo',
+  '6to4',
+  'bluetooth',
+  'wsl',
+  'utun',
 ];
 
 function isPrivateIPv4(ip: string): boolean {
@@ -275,17 +283,27 @@ export async function startEasyTierHost(port?: number, playerName?: string): Pro
   const hostname = `${HOST_HOSTNAME_PREFIX}${scaffolding.port}`;
   const handle = spawnCore(
     [
-      '--network-name', room.networkName,
-      '--network-secret', room.networkSecret,
+      '--network-name',
+      room.networkName,
+      '--network-secret',
+      room.networkSecret,
       '--no-tun',
-      '--ipv4', HOST_VPN_IP,
-      '-l', `tcp://0.0.0.0:${listener}`,
-      '-l', 'udp://0.0.0.0:0',
-      '--hostname', hostname,
-      '--tcp-whitelist', String(scaffolding.port),
-      '--tcp-whitelist', String(serverPort),
-      '--udp-whitelist', String(serverPort),
-      '--compression', 'zstd',
+      '--ipv4',
+      HOST_VPN_IP,
+      '-l',
+      `tcp://0.0.0.0:${listener}`,
+      '-l',
+      'udp://0.0.0.0:0',
+      '--hostname',
+      hostname,
+      '--tcp-whitelist',
+      String(scaffolding.port),
+      '--tcp-whitelist',
+      String(serverPort),
+      '--udp-whitelist',
+      String(serverPort),
+      '--compression',
+      'zstd',
       '--multi-thread',
       '--latency-first',
       '--enable-kcp-proxy',
@@ -339,15 +357,22 @@ export async function startEasyTierGuest(code: string, playerName?: string): Pro
   guestHostname = `${GUEST_HOSTNAME_PREFIX}${crypto.randomBytes(3).toString('hex')}`;
   const handle = spawnCore(
     [
-      '--network-name', room.networkName,
-      '--network-secret', room.networkSecret,
+      '--network-name',
+      room.networkName,
+      '--network-secret',
+      room.networkSecret,
       '--no-tun',
       '-d',
-      '-l', 'tcp://0.0.0.0:0',
-      '-l', 'udp://0.0.0.0:0',
-      '-p', `tcp://${hostIP}:${listenerPort}`,
-      '--hostname', guestHostname,
-      '--compression', 'zstd',
+      '-l',
+      'tcp://0.0.0.0:0',
+      '-l',
+      'udp://0.0.0.0:0',
+      '-p',
+      `tcp://${hostIP}:${listenerPort}`,
+      '--hostname',
+      guestHostname,
+      '--compression',
+      'zstd',
       '--multi-thread',
       '--latency-first',
       '--enable-kcp-proxy',
@@ -452,10 +477,7 @@ async function pingGuestProfile(): Promise<void> {
   if (!guestClient || !guestClient.isAlive()) return;
   await guestClient.sendSync(
     'c:player_ping',
-    Buffer.from(
-      JSON.stringify({ machine_id: machineId, name: guestPlayerName, vendor: vendor() }),
-      'utf8',
-    ),
+    Buffer.from(JSON.stringify({ machine_id: machineId, name: guestPlayerName, vendor: vendor() }), 'utf8'),
   );
 }
 

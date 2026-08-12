@@ -150,7 +150,9 @@ function TabOverview({ version, onBack }: { version: MinecraftVersion; onBack: (
   const handleCompleteFiles = async () => {
     if (!window.electronAPI) return;
     const result = await window.electronAPI.gameDirs.completeFiles(version.id);
-    await window.electronAPI.showAlert(result.success ? t('version.complete_done') : result.error || t('version.complete_failed'));
+    await window.electronAPI.showAlert(
+      result.success ? t('version.complete_done') : result.error || t('version.complete_failed'),
+    );
   };
 
   const handleDeleteVersion = async () => {
@@ -177,7 +179,10 @@ function TabOverview({ version, onBack }: { version: MinecraftVersion; onBack: (
         <InfoRow label={t('version.version_dir')} value={versionPath || t('version.fetching')} />
         <InfoRow label={t('version.game_dir')} value={versionGameDir || t('version.fetching')} />
         <div className="quick-actions" style={{ marginTop: 8 }}>
-          <button className="btn btn--small btn--outline" onClick={() => versionPath && window.electronAPI?.openPath(versionPath)}>
+          <button
+            className="btn btn--small btn--outline"
+            onClick={() => versionPath && window.electronAPI?.openPath(versionPath)}
+          >
             {t('version.open_dir')}
           </button>
           <button className="btn btn--small btn--outline" onClick={handleAddFolder}>
@@ -281,7 +286,12 @@ function TabSettings({ version }: { version: MinecraftVersion }) {
       <Section title={t('version.basic_settings')}>
         <div className="form-group">
           <label className="form-label">{t('version.custom_name')}</label>
-          <input className="form-input" type="text" defaultValue={version.id} placeholder={t('version.custom_name_placeholder')} />
+          <input
+            className="form-input"
+            type="text"
+            defaultValue={version.id}
+            placeholder={t('version.custom_name_placeholder')}
+          />
         </div>
         <div className="form-group">
           <label className="form-label">{t('version.description')}</label>
@@ -295,9 +305,7 @@ function TabSettings({ version }: { version: MinecraftVersion }) {
           <select
             className="form-input form-select"
             value={loadLaunchSettings().isolation ? 'each' : 'none'}
-            onChange={(e) =>
-              saveLaunchSettings({ ...loadLaunchSettings(), isolation: e.target.value === 'each' })
-            }
+            onChange={(e) => saveLaunchSettings({ ...loadLaunchSettings(), isolation: e.target.value === 'each' })}
           >
             <option value="each">{t('version.isolation_each')}</option>
             <option value="none">{t('version.isolation_none')}</option>
@@ -318,9 +326,7 @@ function TabSettings({ version }: { version: MinecraftVersion }) {
               type="text"
               placeholder={t('version.java_auto')}
               value={loadLaunchSettings().javaPath ?? ''}
-              onChange={(e) =>
-                saveLaunchSettings({ ...loadLaunchSettings(), javaPath: e.target.value || null })
-              }
+              onChange={(e) => saveLaunchSettings({ ...loadLaunchSettings(), javaPath: e.target.value || null })}
             />
             <button
               className="btn btn--small btn--outline"
@@ -605,7 +611,9 @@ function TabMods({ version }: { version: MinecraftVersion }) {
     return (
       <div className="tab-pane">
         <div className="mods-empty">
-          <span className="mods-empty-icon"><Package size={32} /></span>
+          <span className="mods-empty-icon">
+            <Package size={32} />
+          </span>
           <p>{t('mods.vanilla_no_mods')}</p>
         </div>
       </div>
@@ -642,14 +650,18 @@ function TabMods({ version }: { version: MinecraftVersion }) {
 
       {loading ? (
         <div className="mods-empty">
-          <span className="mods-empty-icon"><Package size={32} /></span>
+          <span className="mods-empty-icon">
+            <Package size={32} />
+          </span>
           <p>{t('mods.loading')}</p>
         </div>
       ) : (
         <>
           {searched && results.length === 0 && (
             <div className="mods-empty">
-              <span className="mods-empty-icon"><Search size={32} /></span>
+              <span className="mods-empty-icon">
+                <Search size={32} />
+              </span>
               <p>{t('mods.no_results')}</p>
             </div>
           )}
@@ -709,7 +721,9 @@ function ModCard({
         <span className="mod-card-desc">{hit.description}</span>
       </div>
       <div className="mod-card-side">
-        <span className="mod-card-downloads"><Download size={13} /> {formatDownloads(hit.downloads)}</span>
+        <span className="mod-card-downloads">
+          <Download size={13} /> {formatDownloads(hit.downloads)}
+        </span>
         {downloading ? (
           <div className="mod-card-progress">
             <span className="download-progress-bar" style={{ width: `${progress?.percent ?? 0}%` }} />
@@ -744,6 +758,24 @@ function TabExport({ version }: { version: MinecraftVersion }) {
   });
   const [exporting, setExporting] = useState(false);
 
+  // Selective mod export: list the mods in this version, let the user pick.
+  const [modFiles, setModFiles] = useState<string[]>([]);
+  const [modMode, setModMode] = useState<'all' | 'custom'>('all');
+  const [checkedMods, setCheckedMods] = useState<Record<string, boolean>>({});
+  const [loadingMods, setLoadingMods] = useState(false);
+
+  useEffect(() => {
+    if (!window.electronAPI) return;
+    setLoadingMods(true);
+    window.electronAPI.modpack.listMods(version.id).then((res) => {
+      if (res && res.success) {
+        setModFiles(res.mods);
+        setCheckedMods(Object.fromEntries(res.mods.map((m) => [m, true])));
+      }
+      setLoadingMods(false);
+    });
+  }, [version.id]);
+
   const exportItems: { key: keyof typeof items; labelKey: I18nKey }[] = [
     { key: 'mods', labelKey: 'version.export_mods' },
     { key: 'resourcepacks', labelKey: 'version.export_resourcepacks' },
@@ -753,12 +785,19 @@ function TabExport({ version }: { version: MinecraftVersion }) {
     { key: 'options', labelKey: 'version.export_options' },
   ];
 
+  const toggleMod = (file: string) => setCheckedMods((prev) => ({ ...prev, [file]: !prev[file] }));
+  const selectAllMods = () => setCheckedMods(Object.fromEntries(modFiles.map((m) => [m, true])));
+  const selectNoneMods = () => setCheckedMods(Object.fromEntries(modFiles.map((m) => [m, false])));
+
+  const selectedModCount = modFiles.filter((m) => checkedMods[m]).length;
+
   const handleExport = async () => {
     if (!window.electronAPI) return;
     setExporting(true);
     try {
       const result = await window.electronAPI.modpack.export(version.id, {
         includeMods: items.mods,
+        modFiles: modMode === 'custom' ? modFiles.filter((m) => checkedMods[m]) : undefined,
         includeResourcepacks: items.resourcepacks,
         includeShaders: items.shaders,
         includeSaves: items.saves,
@@ -790,7 +829,63 @@ function TabExport({ version }: { version: MinecraftVersion }) {
             </label>
           ))}
         </div>
+        <p className="export-options-hint">{t('version.export_options_hint')}</p>
       </Section>
+
+      {items.mods && (
+        <Section title={t('version.export_mod_select')}>
+          {loadingMods ? (
+            <p className="export-mod-empty">{t('mods.loading')}</p>
+          ) : modFiles.length === 0 ? (
+            <p className="export-mod-empty">{t('version.export_no_mods')}</p>
+          ) : (
+            <>
+              <div className="mod-select-bar">
+                <button
+                  className={`btn btn--small${modMode === 'all' ? ' btn--primary' : ' btn--outline'}`}
+                  onClick={() => setModMode('all')}
+                >
+                  {t('version.export_all_mods')}
+                </button>
+                <button
+                  className={`btn btn--small${modMode === 'custom' ? ' btn--primary' : ' btn--outline'}`}
+                  onClick={() => setModMode('custom')}
+                >
+                  {t('version.export_custom_mods')}
+                </button>
+                <span className="mod-select-count">
+                  {t('version.export_selected', {
+                    n: modMode === 'all' ? modFiles.length : selectedModCount,
+                    total: modFiles.length,
+                  })}
+                </span>
+              </div>
+
+              {modMode === 'custom' && (
+                <div className="mod-select-list">
+                  <div className="mod-select-list-actions">
+                    <button className="mod-select-link" onClick={selectAllMods}>
+                      {t('common.select_all')}
+                    </button>
+                    <span className="mod-select-list-sep">|</span>
+                    <button className="mod-select-link" onClick={selectNoneMods}>
+                      {t('common.select_none')}
+                    </button>
+                  </div>
+                  {modFiles.map((file) => (
+                    <label key={file} className="export-checkbox mod-select-item">
+                      <input type="checkbox" checked={!!checkedMods[file]} onChange={() => toggleMod(file)} />
+                      <span className="mod-select-filename" title={file}>
+                        {file}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </Section>
+      )}
 
       <div className="export-actions">
         <button className="btn btn--primary" onClick={handleExport} disabled={exporting}>

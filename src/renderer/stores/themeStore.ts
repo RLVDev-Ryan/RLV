@@ -193,8 +193,6 @@ export function applyTheme(settings: ThemeSettings): void {
   root.setAttribute('lang', settings.locale.replace('-', '-'));
 }
 
-
-
 /** Read the background image file via IPC → cache data URL → re-apply. */
 export async function loadBgImage(): Promise<void> {
   const path = current.bgImagePath;

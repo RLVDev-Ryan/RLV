@@ -151,7 +151,12 @@ export default function MultiplayerPage() {
                 <div className="version-card-icon">
                   <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
                     <circle cx="11" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
-                    <path d="M5 18c.6-3 3.1-4.5 6-4.5s5.4 1.5 6 4.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                    <path
+                      d="M5 18c.6-3 3.1-4.5 6-4.5s5.4 1.5 6 4.5"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      fill="none"
+                    />
                   </svg>
                 </div>
                 <div className="version-card-info">
@@ -215,13 +220,19 @@ export default function MultiplayerPage() {
             </div>
             <div className="multiplayer-status">
               <span className={`multiplayer-status-dot ${connected ? 'multiplayer-status-dot--active' : ''}`} />
-              <span className="multiplayer-status-text">{connected ? t('multiplayer.connected') : t('multiplayer.disconnected')}</span>
+              <span className="multiplayer-status-text">
+                {connected ? t('multiplayer.connected') : t('multiplayer.disconnected')}
+              </span>
             </div>
           </div>
 
           <div className="multiplayer-bar">
             <span className="multiplayer-bar-text">
-              {connected ? (mode === 'host' ? t('multiplayer.room_created') : t('multiplayer.room_joined')) : t('multiplayer.not_connected')}
+              {connected
+                ? mode === 'host'
+                  ? t('multiplayer.room_created')
+                  : t('multiplayer.room_joined')
+                : t('multiplayer.not_connected')}
             </span>
             {connected && (
               <button className="multiplayer-bar-action" onClick={handleDisconnect}>

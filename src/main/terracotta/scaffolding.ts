@@ -18,7 +18,9 @@ import { type RoomPlayer } from '../../shared/constants';
  */
 
 /** Fixed fingerprint sent in c:ping to verify we reached the right host. */
-export const FINGERPRINT = Buffer.from([0x41, 0x57, 0x48, 0x44, 0x86, 0x37, 0x40, 0x59, 0x57, 0x44, 0x92, 0x43, 0x96, 0x99, 0x85, 0x01]);
+export const FINGERPRINT = Buffer.from([
+  0x41, 0x57, 0x48, 0x44, 0x86, 0x37, 0x40, 0x59, 0x57, 0x44, 0x92, 0x43, 0x96, 0x99, 0x85, 0x01,
+]);
 
 /** Guest profiles are evicted after 10s without a player_ping. */
 const PROFILE_TIMEOUT_MS = 10_000;
@@ -110,10 +112,7 @@ class ProfileStore {
     const existing = this.profiles.get(json.machine_id);
     if (existing && existing.kind === 'HOST') return false; // cannot override host
     const changed =
-      !existing ||
-      existing.name !== json.name ||
-      existing.vendor !== json.vendor ||
-      existing.kind !== 'GUEST';
+      !existing || existing.name !== json.name || existing.vendor !== json.vendor || existing.kind !== 'GUEST';
     this.profiles.set(json.machine_id, {
       machineId: json.machine_id,
       name: json.name,

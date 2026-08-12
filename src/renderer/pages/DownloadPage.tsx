@@ -34,8 +34,17 @@ const HUB_ITEMS = [
 ] as const;
 
 const GAME_VERSIONS = [
-  '1.21.1', '1.21', '1.20.4', '1.20.1', '1.19.4', '1.19.2',
-  '1.18.2', '1.17.1', '1.16.5', '1.12.2', '1.8.9',
+  '1.21.1',
+  '1.21',
+  '1.20.4',
+  '1.20.1',
+  '1.19.4',
+  '1.19.2',
+  '1.18.2',
+  '1.17.1',
+  '1.16.5',
+  '1.12.2',
+  '1.8.9',
 ];
 
 const LOADER_OPTIONS = [
@@ -71,7 +80,9 @@ function CircularHub({ onSelect }: { onSelect: (v: View) => void }) {
       <div className="download-hub-ring">
         {/* Center: game */}
         <button className="hub-btn hub-btn--center" onClick={() => onSelect('game')}>
-          <span className="hub-btn-icon"><Gamepad2 size={30} /></span>
+          <span className="hub-btn-icon">
+            <Gamepad2 size={30} />
+          </span>
           <span className="hub-btn-label">{t('download.cat.game')}</span>
         </button>
 
@@ -127,7 +138,9 @@ function CategoryView({ category, onBack }: { category: string; onBack: () => vo
 
       {type === 'installer' ? (
         <div className="mods-empty">
-          <span className="mods-empty-icon"><Wrench size={32} /></span>
+          <span className="mods-empty-icon">
+            <Wrench size={32} />
+          </span>
           <p>{t('download.installer_empty')}</p>
         </div>
       ) : (
@@ -283,7 +296,13 @@ function GameDownloader({ onBack }: { onBack: () => void }) {
       <div className="download-page">
         <button className="version-detail-back" onClick={() => setSelectedVersion(null)} style={{ marginBottom: 20 }}>
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-            <path d="M11 4L6 9l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d="M11 4L6 9l5 5"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
           <span>{t('download.back')}</span>
         </button>
@@ -316,16 +335,12 @@ function GameDownloader({ onBack }: { onBack: () => void }) {
                 {installing ? (
                   <div className="download-progress-tag">
                     <span className="download-progress-bar" style={{ width: `${lp.percent}%` }} />
-                    <span className="download-progress-text">
-                      {lp.message || `${lp.percent}%`}
-                    </span>
+                    <span className="download-progress-text">{lp.message || `${lp.percent}%`}</span>
                   </div>
                 ) : isDownloading ? (
                   <div className="download-progress-tag">
                     <span className="download-progress-bar" style={{ width: `${pct}%` }} />
-                    <span className="download-progress-text">
-                      {hasError ? t('download.failed') : `${pct}%`}
-                    </span>
+                    <span className="download-progress-text">{hasError ? t('download.failed') : `${pct}%`}</span>
                   </div>
                 ) : (
                   <button
@@ -341,11 +356,7 @@ function GameDownloader({ onBack }: { onBack: () => void }) {
           })}
         </div>
 
-        <button
-          className="btn btn--small btn--ghost"
-          onClick={() => setShowMore(!showMore)}
-          style={{ marginTop: 8 }}
-        >
+        <button className="btn btn--small btn--ghost" onClick={() => setShowMore(!showMore)} style={{ marginTop: 8 }}>
           {showMore ? t('download.collapse_loaders') : t('download.more_loaders')}
         </button>
       </div>
@@ -404,9 +415,7 @@ function GameDownloader({ onBack }: { onBack: () => void }) {
                 </span>
               </div>
             </div>
-            <span className="version-card-tag version-card-tag--release">
-              {t(TYPE_LABELS[v.type])}
-            </span>
+            <span className="version-card-tag version-card-tag--release">{t(TYPE_LABELS[v.type])}</span>
           </button>
         ))}
       </div>

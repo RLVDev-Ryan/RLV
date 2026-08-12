@@ -109,10 +109,7 @@ function readVersionJson(versionId: string, gameDir: string): VersionJson | null
  * profiles inherit the vanilla version). Merges libraries/args/mainClass and
  * returns which base version provides the client jar.
  */
-function resolveVersionJson(
-  versionId: string,
-  gameDir: string,
-): { json: VersionJson; clientVersionId: string } | null {
+function resolveVersionJson(versionId: string, gameDir: string): { json: VersionJson; clientVersionId: string } | null {
   const json = readVersionJson(versionId, gameDir);
   if (!json) return null;
   if (json.inheritsFrom) {
@@ -176,9 +173,8 @@ function matchesRules(rules: OsRule[] | undefined, osName: string, arch: string)
   for (const rule of rules) {
     const osMatch = !rule.os?.name || rule.os.name === osName;
     const archMatch = !rule.os?.arch || rule.os.arch === arch;
-    const featMatch = !rule.features || Object.entries(rule.features).every(
-      ([k, v]) => (DEFAULT_FEATURES[k] ?? false) === v,
-    );
+    const featMatch =
+      !rule.features || Object.entries(rule.features).every(([k, v]) => (DEFAULT_FEATURES[k] ?? false) === v);
     const match = osMatch && archMatch && featMatch;
     if (rule.action === 'allow') {
       if (match) allowed = true;
@@ -192,7 +188,11 @@ function matchesRules(rules: OsRule[] | undefined, osName: string, arch: string)
 function isLibraryForCurrentOs(lib: { rules?: OsRule[] }): boolean {
   // CRITICAL: version JSON uses 'windows'/'osx', Node uses 'win32'/'darwin' —
   // without the mapping every os-rule library is skipped and natives never download.
-  return matchesRules(lib.rules, VERSION_JSON_OS[process.platform] ?? process.platform, VERSION_JSON_ARCH[process.arch] ?? process.arch);
+  return matchesRules(
+    lib.rules,
+    VERSION_JSON_OS[process.platform] ?? process.platform,
+    VERSION_JSON_ARCH[process.arch] ?? process.arch,
+  );
 }
 
 /** Convert a Maven coordinate ("g:a:v[:classifier]") to a jar path. */
@@ -211,7 +211,11 @@ function nameToMavenPath(name: string): string {
  * `downloads.artifact`; Fabric/Quilt launcherMeta provide just a Maven
  * `name` + base `url`, so derive the path and URL from the coordinates.
  */
-function getArtifact(lib: { name?: string; url?: string; downloads?: { artifact?: { url?: string; path?: string; size?: number } } }): { url: string; path: string; size: number } | null {
+function getArtifact(lib: {
+  name?: string;
+  url?: string;
+  downloads?: { artifact?: { url?: string; path?: string; size?: number } };
+}): { url: string; path: string; size: number } | null {
   if (lib.downloads?.artifact?.path) {
     return {
       url: lib.downloads.artifact.url || '',
@@ -530,9 +534,7 @@ function buildArgs(
   // otherwise the client jar lives in the base (inherited) version.
   const ownJar = path.join(gameDir, 'versions', versionId, `${versionId}.jar`);
   const jarOwner = clientVersionId || versionId;
-  const versionJar = fs.existsSync(ownJar)
-    ? ownJar
-    : path.join(gameDir, 'versions', jarOwner, `${jarOwner}.jar`);
+  const versionJar = fs.existsSync(ownJar) ? ownJar : path.join(gameDir, 'versions', jarOwner, `${jarOwner}.jar`);
   const classpath = `${libsPath};${versionJar}`;
   // Isolated versions run inside their own folder (saves/mods are per-version).
   const gameDirArg = options?.isolation ? path.join(gameDir, 'versions', versionId) : gameDir;

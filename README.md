@@ -35,17 +35,27 @@ npm run build      # 编译 TS + Vite
 npm run dist:win   # 打包 Windows 安装器
 ```
 
+## ✅ 代码规范
+
+```bash
+npm run lint         # ESLint 检查
+npm run check:format # Prettier 格式检查
+npm run format       # Prettier 自动格式化
+```
+
+CI（GitHub Actions）会在每次 push / PR 时自动运行 ESLint、Prettier 与构建检查，请在提交前确保 `npm run lint` 与 `npm run check:format` 通过。
+
 ## 🙏 鸣谢
 
 ### 参考的开源启动器项目
 
-| 项目 | 用途 |
-|------|------|
-| [Hello Minecraft! Launcher (HMCL)](https://github.com/HMCL-dev/HMCL) | 联机（Terracotta）集成、版本管理、设置界面参考 |
-| [PCL2 (Plain Craft Launcher 2)](https://github.com/Hex-Dragon/PCL2) | UI 风格、加载器图标参考 |
-| [X Minecraft Launcher (XMCL)](https://github.com/Voxelum/x-minecraft-launcher) | 主进程/渲染进程架构参考 |
-| [RMCL](https://github.com/Asho5kan/RMCL) | 联机与账户逻辑参考 |
-| [YNG Client](https://github.com/yng-nctd/YNG-Client) | 微软 OAuth2 登录流程参考 |
+| 项目                                                                           | 用途                                           |
+| ------------------------------------------------------------------------------ | ---------------------------------------------- |
+| [Hello Minecraft! Launcher (HMCL)](https://github.com/HMCL-dev/HMCL)           | 联机（Terracotta）集成、版本管理、设置界面参考 |
+| [PCL2 (Plain Craft Launcher 2)](https://github.com/Hex-Dragon/PCL2)            | UI 风格、加载器图标参考                        |
+| [X Minecraft Launcher (XMCL)](https://github.com/Voxelum/x-minecraft-launcher) | 主进程/渲染进程架构参考                        |
+| [RMCL](https://github.com/Asho5kan/RMCL)                                       | 联机与账户逻辑参考                             |
+| [YNG Client](https://github.com/yng-nctd/YNG-Client)                           | 微软 OAuth2 登录流程参考                       |
 
 ### 核心依赖库
 
@@ -102,10 +112,25 @@ npm run dist:win   # 打包 Windows 安装器
 
 ## 🚀 发布
 
-发布新版本（构建 + 上传安装包到 GitHub Release，自动更新即可生效）：
+完整更新日志见 [CHANGELOG.md](CHANGELOG.md)。
+
+发布新版本（构建 + 上传安装包到 GitHub Release，自动更新即可生效）。两种方式任选：
+
+**方式一：推送 tag 触发 CI 自动发布（推荐）**
+
+```bash
+git tag v0.4.0
+git push origin v0.4.0
+```
+
+GitHub Actions 的 `publish` 任务会自动构建 Windows 安装器并发布到 GitHub Release。需在仓库 **Settings → Secrets → Actions** 中配置 `GH_TOKEN`（GitHub Personal Access Token）。
+
+**方式二：本地手动发布**
 
 ```bash
 npm run dist:publish
 ```
 
-需在环境变量中设置 `GH_TOKEN`（GitHub Personal Access Token）。版本号取自 `package.json` 的 `version`。旧版本安装的用户会自动检测到更新。
+需在环境变量中设置 `GH_TOKEN`。版本号取自 `package.json` 的 `version`。
+
+发布渠道为正式 Release（`electron-builder.yml` 中 `publish.releaseType: release`，非 draft）。旧版本安装的用户会自动检测到更新。

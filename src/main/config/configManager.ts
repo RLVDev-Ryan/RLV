@@ -56,7 +56,8 @@ export function loadConfig<K extends ConfigName>(name: K): RlvConfigs[K] {
     delete require.cache[require.resolve(file)];
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const mod = require(file) as unknown;
-    const value = mod && typeof mod === 'object' && 'default' in (mod as object) ? (mod as { default: unknown }).default : mod;
+    const value =
+      mod && typeof mod === 'object' && 'default' in (mod as object) ? (mod as { default: unknown }).default : mod;
     return sanitize(value, DEFAULT_CONFIGS[name]) as RlvConfigs[K];
   } catch (err) {
     console.error(`[Config] Failed to load ${name}.js — using defaults:`, err);

@@ -84,12 +84,19 @@ export interface LogsAPI {
 }
 
 export interface LoaderAPI {
-  install: (loader: LoaderKey, gameVersion: string) => Promise<{ success: boolean; versionId?: string; error?: string }>;
+  install: (
+    loader: LoaderKey,
+    gameVersion: string,
+  ) => Promise<{ success: boolean; versionId?: string; error?: string }>;
   onProgress: (callback: (p: LoaderInstallProgress) => void) => () => void;
 }
 
 export interface ModpackAPI {
-  export: (versionId: string, options: ModpackExportOptions) => Promise<{ success: boolean; path?: string; error?: string }>;
+  export: (
+    versionId: string,
+    options: ModpackExportOptions,
+  ) => Promise<{ success: boolean; path?: string; error?: string }>;
+  listMods: (versionId: string) => Promise<{ success: boolean; mods: string[]; error?: string }>;
 }
 
 export interface FontsAPI {

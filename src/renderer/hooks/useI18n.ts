@@ -13,9 +13,9 @@ export type I18nKey = keyof typeof zhCN;
 const LOCALE_MAP: Record<AppLocale, LocaleDict> = {
   'zh-CN': zhCN as LocaleDict,
   'zh-TW': zhTW as LocaleDict,
-  'ja': ja as LocaleDict,
-  'ko': ko as LocaleDict,
-  'en': en as LocaleDict,
+  ja: ja as LocaleDict,
+  ko: ko as LocaleDict,
+  en: en as LocaleDict,
 };
 
 let currentDict: LocaleDict = LOCALE_MAP['zh-CN'];

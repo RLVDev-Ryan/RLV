@@ -98,7 +98,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // ── Mod loader install ──
   loader: {
-    install: (loader: LoaderKey, gameVersion: string): Promise<{ success: boolean; versionId?: string; error?: string }> =>
+    install: (
+      loader: LoaderKey,
+      gameVersion: string,
+    ): Promise<{ success: boolean; versionId?: string; error?: string }> =>
       ipcRenderer.invoke(IPC_CHANNELS.LOADER_INSTALL, loader, gameVersion),
     onProgress: (callback: (p: LoaderInstallProgress) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, p: LoaderInstallProgress) => callback(p);
@@ -111,8 +114,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   logs: {
     get: (): Promise<string[]> => ipcRenderer.invoke(IPC_CHANNELS.LOGS_GET),
     clear: (): Promise<{ success: boolean }> => ipcRenderer.invoke(IPC_CHANNELS.LOGS_CLEAR),
-    openFolder: (): Promise<{ success: boolean; error?: string }> =>
-      ipcRenderer.invoke(IPC_CHANNELS.LOGS_OPEN_FOLDER),
+    openFolder: (): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke(IPC_CHANNELS.LOGS_OPEN_FOLDER),
     onAppend: (callback: (line: string) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, line: string) => callback(line);
       ipcRenderer.on(IPC_CHANNELS.LOGS_APPEND, handler);
@@ -122,14 +124,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // ── Modpack export ──
   modpack: {
-    export: (versionId: string, options: ModpackExportOptions): Promise<{ success: boolean; path?: string; error?: string }> =>
+    export: (
+      versionId: string,
+      options: ModpackExportOptions,
+    ): Promise<{ success: boolean; path?: string; error?: string }> =>
       ipcRenderer.invoke(IPC_CHANNELS.MODPACK_EXPORT, versionId, options),
+    listMods: (versionId: string): Promise<{ success: boolean; mods: string[]; error?: string }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.MODPACK_LIST_MODS, versionId),
   },
 
   // ── On-demand fonts ──
   fonts: {
-    isCached: (family: string): Promise<{ cached: boolean }> =>
-      ipcRenderer.invoke(IPC_CHANNELS.FONT_IS_CACHED, family),
+    isCached: (family: string): Promise<{ cached: boolean }> => ipcRenderer.invoke(IPC_CHANNELS.FONT_IS_CACHED, family),
     download: (family: string): Promise<{ success: boolean; error?: string; cancelled?: boolean }> =>
       ipcRenderer.invoke(IPC_CHANNELS.FONT_DOWNLOAD, family),
     cancel: (): Promise<{ success: boolean }> => ipcRenderer.invoke(IPC_CHANNELS.FONT_CANCEL),
@@ -144,8 +150,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   music: {
     getPlaylist: (): Promise<{ tracks: { name: string; url: string }[]; root: string }> =>
       ipcRenderer.invoke(IPC_CHANNELS.MUSIC_GET_PLAYLIST),
-    openDir: (): Promise<{ success: boolean; error?: string }> =>
-      ipcRenderer.invoke(IPC_CHANNELS.MUSIC_OPEN_DIR),
+    openDir: (): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke(IPC_CHANNELS.MUSIC_OPEN_DIR),
   },
 
   // ── .js config system ──
@@ -205,8 +210,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // ── Terracotta multiplayer ──
   terracotta: {
-    start: (port?: number): Promise<TerracottaStartResult> =>
-      ipcRenderer.invoke(IPC_CHANNELS.TERRACOTTA_START, port),
+    start: (port?: number): Promise<TerracottaStartResult> => ipcRenderer.invoke(IPC_CHANNELS.TERRACOTTA_START, port),
     join: (inviteCode: string): Promise<TerracottaJoinResult> =>
       ipcRenderer.invoke(IPC_CHANNELS.TERRACOTTA_JOIN, inviteCode),
     stop: (): Promise<{ success: boolean }> => ipcRenderer.invoke(IPC_CHANNELS.TERRACOTTA_STOP),

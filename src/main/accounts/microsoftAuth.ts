@@ -23,10 +23,7 @@ const microsoftAuth = new MicrosoftAuthenticator({});
  * Falls back to the system default browser.
  */
 function openLoginUrl(url: string): void {
-  const programDirs = [
-    process.env['ProgramFiles(x86)'],
-    process.env.ProgramFiles,
-  ].filter((d): d is string => !!d);
+  const programDirs = [process.env['ProgramFiles(x86)'], process.env.ProgramFiles].filter((d): d is string => !!d);
 
   const edgeExe = programDirs
     .map((d) => path.join(d, 'Microsoft', 'Edge', 'Application', 'msedge.exe'))

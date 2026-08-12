@@ -18,7 +18,6 @@ export const IPC_CHANNELS = {
   UPDATE_DOWNLOAD: 'update:download',
   UPDATE_INSTALL: 'update:install',
 
-
   // Platform info
   GET_PLATFORM: 'app:get-platform',
 
@@ -70,6 +69,7 @@ export const IPC_CHANNELS = {
 
   // Modpack export
   MODPACK_EXPORT: 'modpack:export',
+  MODPACK_LIST_MODS: 'modpack:list-mods',
 
   // On-demand fonts
   FONT_IS_CACHED: 'font:is-cached',
@@ -200,7 +200,8 @@ export const VANILLA_CARD_BG = 'rgba(124, 184, 124, 0.08)';
 
 /* ── Shared IPC payload types (single source of truth for main/preload/renderer) ── */
 
-export type LaunchStage = 'start' | 'java' | 'resolve' | 'libraries' | 'assets' | 'natives' | 'launch' | 'done' | 'error';
+export type LaunchStage =
+  'start' | 'java' | 'resolve' | 'libraries' | 'assets' | 'natives' | 'launch' | 'done' | 'error';
 
 export interface LaunchProgress {
   stage: LaunchStage;
@@ -288,6 +289,9 @@ export interface LoaderInstallProgress {
 
 export interface ModpackExportOptions {
   includeMods: boolean;
+  /** When set (and non-empty), only these mod file names (relative to `mods/`)
+   * are exported instead of the whole mods folder. */
+  modFiles?: string[];
   includeResourcepacks: boolean;
   includeShaders: boolean;
   includeSaves: boolean;

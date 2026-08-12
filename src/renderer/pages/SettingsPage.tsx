@@ -109,33 +109,30 @@ function LanguageSection({
   }, []);
 
   /** Ensure a font is available (download on demand), then apply it. */
-  const selectFont = useCallback(
-    async (value: string, apply: () => void) => {
-      if (!window.electronAPI) {
-        apply();
-        return;
-      }
-      const spec = FONT_MANIFEST[value];
-      if (!spec || spec.bundled) {
-        apply(); // bundled default — already present
-        return;
-      }
-      const { cached } = await window.electronAPI.fonts.isCached(value);
-      if (cached) {
-        injectFontFace(value);
-        apply();
-        return;
-      }
-      fontStore._begin(value);
-      const result = await window.electronAPI.fonts.download(value);
-      if (!result.cancelled && result.success) {
-        injectFontFace(value);
-        apply();
-      }
-      fontStore._end();
-    },
-    [],
-  );
+  const selectFont = useCallback(async (value: string, apply: () => void) => {
+    if (!window.electronAPI) {
+      apply();
+      return;
+    }
+    const spec = FONT_MANIFEST[value];
+    if (!spec || spec.bundled) {
+      apply(); // bundled default — already present
+      return;
+    }
+    const { cached } = await window.electronAPI.fonts.isCached(value);
+    if (cached) {
+      injectFontFace(value);
+      apply();
+      return;
+    }
+    fontStore._begin(value);
+    const result = await window.electronAPI.fonts.download(value);
+    if (!result.cancelled && result.success) {
+      injectFontFace(value);
+      apply();
+    }
+    fontStore._end();
+  }, []);
 
   const applyFont = (partial: Partial<ThemeSettings>) => onThemeChange(partial);
 
@@ -168,7 +165,9 @@ function LanguageSection({
       {/* Font selector */}
       <div className="settings-card">
         <div className="settings-card-title-row">
-          <h3 className="settings-card-title" style={{ margin: 0 }}>{t('settings.font.choose')}</h3>
+          <h3 className="settings-card-title" style={{ margin: 0 }}>
+            {t('settings.font.choose')}
+          </h3>
           <div className="theme-switch-group" style={{ gap: 4 }}>
             <button
               className={`theme-switch-btn${theme.fontMode === 'global' ? ' theme-switch-btn--active' : ''}`}
@@ -188,7 +187,9 @@ function LanguageSection({
         </div>
         {fontBusy && (
           <div className="font-download-banner">
-            <span className="font-download-name">{t('settings.font.downloading', { font: fontStore.downloading ?? '' })}</span>
+            <span className="font-download-name">
+              {t('settings.font.downloading', { font: fontStore.downloading ?? '' })}
+            </span>
             <div className="font-download-track">
               <div className="font-download-fill" style={{ width: `${fontProgress}%` }} />
             </div>
@@ -209,7 +210,9 @@ function LanguageSection({
           <select
             className="form-input form-select"
             value={theme.fontFamily ?? DEFAULT_FONT}
-            onChange={(e) => selectFont(e.target.value || DEFAULT_FONT, () => applyFont({ fontFamily: e.target.value || null }))}
+            onChange={(e) =>
+              selectFont(e.target.value || DEFAULT_FONT, () => applyFont({ fontFamily: e.target.value || null }))
+            }
             style={{ marginTop: 12 }}
           >
             {FONT_OPTIONS.map((f) => (
@@ -227,7 +230,9 @@ function LanguageSection({
               <select
                 className="form-input form-select"
                 value={theme.fontContent ?? DEFAULT_FONT}
-                onChange={(e) => selectFont(e.target.value || DEFAULT_FONT, () => applyFont({ fontContent: e.target.value || null }))}
+                onChange={(e) =>
+                  selectFont(e.target.value || DEFAULT_FONT, () => applyFont({ fontContent: e.target.value || null }))
+                }
               >
                 {FONT_OPTIONS.map((f) => (
                   <option key={f} value={f}>
@@ -243,7 +248,9 @@ function LanguageSection({
               <select
                 className="form-input form-select"
                 value={theme.fontButtons ?? DEFAULT_FONT}
-                onChange={(e) => selectFont(e.target.value || DEFAULT_FONT, () => applyFont({ fontButtons: e.target.value || null }))}
+                onChange={(e) =>
+                  selectFont(e.target.value || DEFAULT_FONT, () => applyFont({ fontButtons: e.target.value || null }))
+                }
               >
                 {FONT_OPTIONS.map((f) => (
                   <option key={f} value={f}>
@@ -259,7 +266,9 @@ function LanguageSection({
               <select
                 className="form-input form-select"
                 value={theme.fontLogs ?? DEFAULT_FONT}
-                onChange={(e) => selectFont(e.target.value || DEFAULT_FONT, () => applyFont({ fontLogs: e.target.value || null }))}
+                onChange={(e) =>
+                  selectFont(e.target.value || DEFAULT_FONT, () => applyFont({ fontLogs: e.target.value || null }))
+                }
               >
                 {FONT_OPTIONS.map((f) => (
                   <option key={f} value={f}>
@@ -295,7 +304,13 @@ function AboutSection() {
       <div className="settings-section">
         <button className="version-detail-back" onClick={() => setSelected(null)} style={{ marginBottom: 16 }}>
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-            <path d="M11 4L6 9l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d="M11 4L6 9l5 5"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
           <span>{t('common.back')}</span>
         </button>
@@ -313,6 +328,17 @@ function AboutSection() {
         <div className="settings-card">
           <h3 className="settings-card-title">{t('about.license')}</h3>
           <p className="credit-detail-text">{selected.license}</p>
+          {selected.licenseUrl && (
+            <button
+              className="btn btn--small btn--outline"
+              style={{ marginTop: 8 }}
+              onClick={() => {
+                if (selected.licenseUrl) window.electronAPI?.openExternal(selected.licenseUrl);
+              }}
+            >
+              {t('about.view_license')}
+            </button>
+          )}
         </div>
 
         <div className="settings-card">
@@ -632,7 +658,9 @@ function PersonalizationSection({
       <div className="settings-card">
         <h3 className="settings-card-title">{t('settings.ui.title')}</h3>
         <div className="form-group">
-          <label className="form-label">{t('settings.ui.radius')}: {uiCfg.radius}px</label>
+          <label className="form-label">
+            {t('settings.ui.radius')}: {uiCfg.radius}px
+          </label>
           <input
             type="range"
             className="form-range"
@@ -643,7 +671,9 @@ function PersonalizationSection({
           />
         </div>
         <div className="form-group">
-          <label className="form-label">{t('settings.ui.blur')}: {uiCfg.blur}px</label>
+          <label className="form-label">
+            {t('settings.ui.blur')}: {uiCfg.blur}px
+          </label>
           <input
             type="range"
             className="form-range"
@@ -654,7 +684,9 @@ function PersonalizationSection({
           />
         </div>
         <div className="form-group">
-          <label className="form-label">{t('settings.ui.opacity')}: {Math.round(uiCfg.opacity * 100)}%</label>
+          <label className="form-label">
+            {t('settings.ui.opacity')}: {Math.round(uiCfg.opacity * 100)}%
+          </label>
           <input
             type="range"
             className="form-range"
@@ -701,7 +733,9 @@ function PersonalizationSection({
           <span>{t('settings.music.enable')}</span>
         </label>
         <div className="form-group">
-          <label className="form-label">{t('settings.music.volume')}: {musicCfg.volume}%</label>
+          <label className="form-label">
+            {t('settings.music.volume')}: {musicCfg.volume}%
+          </label>
           <input
             type="range"
             className="form-range"
@@ -778,7 +812,6 @@ function PersonalizationSection({
           </button>
         </div>
       </div>
-
     </div>
   );
 }

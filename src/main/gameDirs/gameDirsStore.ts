@@ -54,9 +54,7 @@ export function scanInstalledVersions(): InstalledVersionInfo[] {
         results.push({
           id,
           releaseTime:
-            typeof json.releaseTime === 'string'
-              ? json.releaseTime
-              : fs.statSync(jsonPath).mtime.toISOString(),
+            typeof json.releaseTime === 'string' ? json.releaseTime : fs.statSync(jsonPath).mtime.toISOString(),
           gameDir,
           loader: detectLoader(json),
         });

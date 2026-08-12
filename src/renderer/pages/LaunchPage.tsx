@@ -125,17 +125,13 @@ export default function LaunchPage() {
     launchStore.start(selectedVersion.id, iconPath);
     try {
       const settings = loadLaunchSettings();
-      const result = await window.electronAPI.launch.game(
-        selectedVersion.id,
-        currentAccount.name,
-        {
-          memoryMB: settings.memoryMB,
-          jvmArgs: settings.jvmArgs,
-          gameArgs: settings.gameArgs,
-          isolation: settings.isolation,
-          javaPath: settings.javaPath ?? undefined,
-        },
-      );
+      const result = await window.electronAPI.launch.game(selectedVersion.id, currentAccount.name, {
+        memoryMB: settings.memoryMB,
+        jvmArgs: settings.jvmArgs,
+        gameArgs: settings.gameArgs,
+        isolation: settings.isolation,
+        javaPath: settings.javaPath ?? undefined,
+      });
       if (!cancelledRef.current && !result.success && result.error) {
         launchStore.setProgress({ stage: 'error', percent: 0, error: result.error });
       }
@@ -211,7 +207,13 @@ export default function LaunchPage() {
         <div className="added-dirs-view">
           <button className="version-detail-back" onClick={() => setShowDirs(false)} style={{ marginBottom: 20 }}>
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <path d="M11 4L6 9l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <path
+                d="M11 4L6 9l5 5"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
             <span>{t('common.back')}</span>
           </button>
@@ -227,10 +229,7 @@ export default function LaunchPage() {
                 <span className="added-dir-path" title={dir}>
                   {dir}
                 </span>
-                <button
-                  className="btn btn--small btn--outline"
-                  onClick={() => window.electronAPI?.openPath(dir)}
-                >
+                <button className="btn btn--small btn--outline" onClick={() => window.electronAPI?.openPath(dir)}>
                   {t('version.open_dir')}
                 </button>
                 <button

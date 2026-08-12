@@ -73,8 +73,7 @@ function buildLoaderProfile(
     libraries?: { common?: unknown[]; client?: unknown[] };
   },
 ): { id: string } & Record<string, unknown> {
-  const sub = (s: string) =>
-    Object.entries(placeholders).reduce((acc, [k, v]) => acc.split(`{${k}}`).join(v), s);
+  const sub = (s: string) => Object.entries(placeholders).reduce((acc, [k, v]) => acc.split(`{${k}}`).join(v), s);
   const libs = [...(launcherMeta.libraries?.common ?? []), ...(launcherMeta.libraries?.client ?? [])].map((lib) =>
     JSON.parse(sub(JSON.stringify(lib))),
   );
@@ -91,7 +90,11 @@ function buildLoaderProfile(
   };
 }
 
-async function installFabric(gameVersion: string, gameDir: string, onProgress: InstallProgress): Promise<LoaderInstallResult> {
+async function installFabric(
+  gameVersion: string,
+  gameDir: string,
+  onProgress: InstallProgress,
+): Promise<LoaderInstallResult> {
   await ensureVanilla(gameVersion, gameDir, onProgress);
   onProgress('loader', 20, '获取 Fabric 版本…');
   const res = await fetch(`https://meta.fabricmc.net/v2/versions/loader/${gameVersion}`);
@@ -103,18 +106,32 @@ async function installFabric(gameVersion: string, gameDir: string, onProgress: I
   const metaRes = await fetch(`https://meta.fabricmc.net/v2/versions/loader/${gameVersion}/${loader.version}`);
   if (!metaRes.ok) return { success: false, error: 'Fabric 配置下载失败' };
   const meta = (await metaRes.json()) as { launcherMeta: Parameters<typeof buildLoaderProfile>[4] };
-  const profile = buildLoaderProfile(gameVersion, 'fabric', loader.version, { loader: loader.version, intermediary: intermediary.version }, meta.launcherMeta);
+  const profile = buildLoaderProfile(
+    gameVersion,
+    'fabric',
+    loader.version,
+    { loader: loader.version, intermediary: intermediary.version },
+    meta.launcherMeta,
+  );
   writeVersionJson(gameDir, profile);
   onProgress('done', 100, 'Fabric 安装完成');
   return { success: true, versionId: profile.id };
 }
 
-async function installQuilt(gameVersion: string, gameDir: string, onProgress: InstallProgress): Promise<LoaderInstallResult> {
+async function installQuilt(
+  gameVersion: string,
+  gameDir: string,
+  onProgress: InstallProgress,
+): Promise<LoaderInstallResult> {
   await ensureVanilla(gameVersion, gameDir, onProgress);
   onProgress('loader', 20, '获取 Quilt 版本…');
   const res = await fetch(`https://meta.quiltmc.org/v3/versions/loader/${gameVersion}`);
   if (!res.ok) return { success: false, error: `Quilt 暂不支持 ${gameVersion}` };
-  const loaders = (await res.json()) as Array<{ loader: { version: string }; intermediary: { version: string }; mappings: { version: string } }>;
+  const loaders = (await res.json()) as Array<{
+    loader: { version: string };
+    intermediary: { version: string };
+    mappings: { version: string };
+  }>;
   if (!loaders.length) return { success: false, error: `Quilt 暂不支持 ${gameVersion}` };
   const { loader, intermediary, mappings } = loaders[0];
   onProgress('loader', 40, '下载 Quilt 配置…');
@@ -133,11 +150,7 @@ async function installQuilt(gameVersion: string, gameDir: string, onProgress: In
   return { success: true, versionId: profile.id };
 }
 
-async function runInstallerJar(
-  installerPath: string,
-  args: string[],
-  onProgress: InstallProgress,
-): Promise<void> {
+async function runInstallerJar(installerPath: string, args: string[], onProgress: InstallProgress): Promise<void> {
   const javaPath = findJavaPath();
   if (!javaPath) throw new Error('未找到 Java，无法运行安装器');
   onProgress('installer', 70, '运行安装器…');
@@ -154,10 +167,16 @@ async function runInstallerJar(
   });
 }
 
-async function installForge(gameVersion: string, gameDir: string, onProgress: InstallProgress): Promise<LoaderInstallResult> {
+async function installForge(
+  gameVersion: string,
+  gameDir: string,
+  onProgress: InstallProgress,
+): Promise<LoaderInstallResult> {
   await ensureVanilla(gameVersion, gameDir, onProgress);
   onProgress('loader', 25, '获取 Forge 版本…');
-  const meta = await (await fetch('https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml')).text();
+  const meta = await (
+    await fetch('https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml')
+  ).text();
   const versions = [...meta.matchAll(/<version>([^<]+)<\/version>/g)].map((m) => m[1]);
   const matches = versions.filter((v) => v.startsWith(`${gameVersion}-`));
   if (!matches.length) return { success: false, error: `Forge 暂不支持 ${gameVersion}` };
@@ -174,7 +193,11 @@ async function installForge(gameVersion: string, gameDir: string, onProgress: In
   return { success: true, versionId: `${gameVersion}-forge-${shortVersion}` };
 }
 
-async function installNeoForge(gameVersion: string, gameDir: string, onProgress: InstallProgress): Promise<LoaderInstallResult> {
+async function installNeoForge(
+  gameVersion: string,
+  gameDir: string,
+  onProgress: InstallProgress,
+): Promise<LoaderInstallResult> {
   await ensureVanilla(gameVersion, gameDir, onProgress);
   onProgress('loader', 25, '获取 NeoForge 版本…');
   const res = await fetch('https://maven.neoforged.net/releases/net/neoforged/neoforge/promotions_slim.json');
@@ -199,7 +222,11 @@ async function installNeoForge(gameVersion: string, gameDir: string, onProgress:
  * class headlessly with %APPDATA% redirected so it installs into OUR game dir
  * (it derives the minecraft dir from %APPDATA%\.minecraft on Windows).
  */
-async function installOptiFine(gameVersion: string, gameDir: string, onProgress: InstallProgress): Promise<LoaderInstallResult> {
+async function installOptiFine(
+  gameVersion: string,
+  gameDir: string,
+  onProgress: InstallProgress,
+): Promise<LoaderInstallResult> {
   await ensureVanilla(gameVersion, gameDir, onProgress);
   onProgress('loader', 20, '获取 OptiFine 版本…');
   const res = await fetch(`https://bmclapi2.bangbang93.com/optifine/${gameVersion}`);

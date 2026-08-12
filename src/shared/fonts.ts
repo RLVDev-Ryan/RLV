@@ -77,28 +77,39 @@ export const FONT_MANIFEST: Record<string, FontSpec> = {
   },
   // ── Maple Mono NF CN (on-demand) ──
   'Maple Mono NF CN Thin': { files: [{ file: 'MapleMono-NF-CN-Thin.ttf', format: 'truetype' }] },
-  'Maple Mono NF CN Thin Italic': { files: [{ file: 'MapleMono-NF-CN-ThinItalic.ttf', format: 'truetype', style: 'italic' }] },
+  'Maple Mono NF CN Thin Italic': {
+    files: [{ file: 'MapleMono-NF-CN-ThinItalic.ttf', format: 'truetype', style: 'italic' }],
+  },
   'Maple Mono NF CN ExtraLight': { files: [{ file: 'MapleMono-NF-CN-ExtraLight.ttf', format: 'truetype' }] },
-  'Maple Mono NF CN ExtraLight Italic': { files: [{ file: 'MapleMono-NF-CN-ExtraLightItalic.ttf', format: 'truetype', style: 'italic' }] },
+  'Maple Mono NF CN ExtraLight Italic': {
+    files: [{ file: 'MapleMono-NF-CN-ExtraLightItalic.ttf', format: 'truetype', style: 'italic' }],
+  },
   'Maple Mono NF CN Light': { files: [{ file: 'MapleMono-NF-CN-Light.ttf', format: 'truetype' }] },
-  'Maple Mono NF CN Light Italic': { files: [{ file: 'MapleMono-NF-CN-LightItalic.ttf', format: 'truetype', style: 'italic' }] },
+  'Maple Mono NF CN Light Italic': {
+    files: [{ file: 'MapleMono-NF-CN-LightItalic.ttf', format: 'truetype', style: 'italic' }],
+  },
   'Maple Mono NF CN Regular': { files: [{ file: 'MapleMono-NF-CN-Regular.ttf', format: 'truetype' }] },
   'Maple Mono NF CN Italic': { files: [{ file: 'MapleMono-NF-CN-Italic.ttf', format: 'truetype', style: 'italic' }] },
   'Maple Mono NF CN Medium': { files: [{ file: 'MapleMono-NF-CN-Medium.ttf', format: 'truetype' }] },
-  'Maple Mono NF CN Medium Italic': { files: [{ file: 'MapleMono-NF-CN-MediumItalic.ttf', format: 'truetype', style: 'italic' }] },
+  'Maple Mono NF CN Medium Italic': {
+    files: [{ file: 'MapleMono-NF-CN-MediumItalic.ttf', format: 'truetype', style: 'italic' }],
+  },
   'Maple Mono NF CN SemiBold': { files: [{ file: 'MapleMono-NF-CN-SemiBold.ttf', format: 'truetype' }] },
-  'Maple Mono NF CN SemiBold Italic': { files: [{ file: 'MapleMono-NF-CN-SemiBoldItalic.ttf', format: 'truetype', style: 'italic' }] },
+  'Maple Mono NF CN SemiBold Italic': {
+    files: [{ file: 'MapleMono-NF-CN-SemiBoldItalic.ttf', format: 'truetype', style: 'italic' }],
+  },
   'Maple Mono NF CN Bold': { files: [{ file: 'MapleMono-NF-CN-Bold.ttf', format: 'truetype' }] },
-  'Maple Mono NF CN Bold Italic': { files: [{ file: 'MapleMono-NF-CN-BoldItalic.ttf', format: 'truetype', style: 'italic' }] },
+  'Maple Mono NF CN Bold Italic': {
+    files: [{ file: 'MapleMono-NF-CN-BoldItalic.ttf', format: 'truetype', style: 'italic' }],
+  },
   'Maple Mono NF CN ExtraBold': { files: [{ file: 'MapleMono-NF-CN-ExtraBold.ttf', format: 'truetype' }] },
-  'Maple Mono NF CN ExtraBold Italic': { files: [{ file: 'MapleMono-NF-CN-ExtraBoldItalic.ttf', format: 'truetype', style: 'italic' }] },
+  'Maple Mono NF CN ExtraBold Italic': {
+    files: [{ file: 'MapleMono-NF-CN-ExtraBoldItalic.ttf', format: 'truetype', style: 'italic' }],
+  },
 };
 
 /** The full list of selectable font families (default first). */
-export const FONT_OPTIONS = [
-  DEFAULT_FONT,
-  ...Object.keys(FONT_MANIFEST).filter((f) => f !== DEFAULT_FONT),
-];
+export const FONT_OPTIONS = [DEFAULT_FONT, ...Object.keys(FONT_MANIFEST).filter((f) => f !== DEFAULT_FONT)];
 
 /** A short identifier used for the local cache directory. */
 export function fontSlug(family: string): string {

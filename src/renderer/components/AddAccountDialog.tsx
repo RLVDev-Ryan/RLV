@@ -147,11 +147,7 @@ export default function AddAccountDialog({
           <div className="dialog-body">
             <p className="dialog-desc">{t('account.choose_method')}</p>
             <div className="auth-options">
-              <button
-                className="auth-option"
-                onClick={handleMicrosoft}
-                disabled={loading}
-              >
+              <button className="auth-option" onClick={handleMicrosoft} disabled={loading}>
                 <div className="auth-option-icon">
                   <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
                     <rect x="3" y="3" width="10" height="10" rx="2" fill="#00a4ef" />
@@ -165,7 +161,13 @@ export default function AddAccountDialog({
                   <span className="auth-option-desc">{t('account.login_microsoft_desc')}</span>
                 </div>
                 <svg className="auth-option-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path
+                    d="M6 3l5 5-5 5"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
               </button>
 
@@ -181,7 +183,13 @@ export default function AddAccountDialog({
                   <span className="auth-option-desc">{t('account.login_yggdrasil_desc')}</span>
                 </div>
                 <svg className="auth-option-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path
+                    d="M6 3l5 5-5 5"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
               </button>
 
@@ -189,7 +197,13 @@ export default function AddAccountDialog({
                 <div className="auth-option-icon auth-option-icon--green">
                   <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
                     <circle cx="14" cy="14" r="10" stroke="currentColor" strokeWidth="2" fill="none" />
-                    <path d="M10 14l2 2 4-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <path
+                      d="M10 14l2 2 4-5"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
                   </svg>
                 </div>
                 <div className="auth-option-text">
@@ -197,7 +211,13 @@ export default function AddAccountDialog({
                   <span className="auth-option-desc">{t('account.login_offline_desc')}</span>
                 </div>
                 <svg className="auth-option-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path
+                    d="M6 3l5 5-5 5"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
               </button>
             </div>

@@ -41,7 +41,9 @@ export function applyPortablePaths(): void {
 
 /** The default Minecraft game directory. */
 export function getDefaultGameDir(): string {
-  return isPortable() ? path.join(portableRoot(), '.minecraft') : path.join(app.getPath('appData'), 'rlv', '.minecraft');
+  return isPortable()
+    ? path.join(portableRoot(), '.minecraft')
+    : path.join(app.getPath('appData'), 'rlv', '.minecraft');
 }
 
 /** Ensure the portable/installed data directory tree exists. */

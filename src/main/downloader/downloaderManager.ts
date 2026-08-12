@@ -71,4 +71,3 @@ export async function downloadVersion(versionId: string, gameDir: string, onProg
     throw err;
   }
 }
-

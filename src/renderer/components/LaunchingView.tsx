@@ -47,9 +47,7 @@ export default function LaunchingView({ version, progress, onCancel, iconPath }:
             style={{ width: `${Math.min(100, Math.max(0, percent))}%` }}
           />
         </div>
-        <span className="launching-progress-text">
-          {isError ? '' : `${Math.round(percent)}%`}
-        </span>
+        <span className="launching-progress-text">{isError ? '' : `${Math.round(percent)}%`}</span>
       </div>
 
       <div className={`launching-stage${isError ? ' launching-stage--error' : ''}`}>{stageText}</div>

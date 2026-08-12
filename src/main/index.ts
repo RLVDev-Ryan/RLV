@@ -21,7 +21,7 @@ import { downloadVersion, fetchVersionManifest } from './downloader/downloaderMa
 import { downloadFile } from './downloader/downloadFile';
 import { installLogger, getLogs, clearLogs, setLoggerWindow } from './logger';
 import { installLoader } from './installer/loaderInstaller';
-import { exportModpack } from './modpack/modpackExporter';
+import { exportModpack, listModpackMods } from './modpack/modpackExporter';
 import { isFontCached, downloadFont, cancelFontDownload, registerFontProtocol } from './fonts/fontManager';
 import { applyPortablePaths, ensureDataDirs } from './paths';
 import { getAllConfigs, loadConfig, saveConfig, configDir } from './config/configManager';
@@ -55,7 +55,10 @@ app.disableHardwareAcceleration();
 // Custom schemes for serving downloaded fonts / background music to the renderer.
 protocol.registerSchemesAsPrivileged([
   { scheme: 'rlv-font', privileges: { secure: true, standard: true, supportFetchAPI: true, stream: true } },
-  { scheme: 'rlv-audio', privileges: { secure: true, standard: true, supportFetchAPI: true, stream: true, bypassCSP: true } },
+  {
+    scheme: 'rlv-audio',
+    privileges: { secure: true, standard: true, supportFetchAPI: true, stream: true, bypassCSP: true },
+  },
 ]);
 
 // Portable mode: redirect userData into .RLV next to the exe before anything
@@ -235,14 +238,8 @@ function registerIpcHandlers(): void {
   });
 
   // ── Auto updater ──
-  ipcMain.handle(IPC_CHANNELS.UPDATE_DOWNLOAD, () => {
-    downloadUpdate();
-    return { success: true };
-  });
-  ipcMain.handle(IPC_CHANNELS.UPDATE_INSTALL, () => {
-    quitAndInstall();
-    return { success: true };
-  });
+  ipcMain.handle(IPC_CHANNELS.UPDATE_DOWNLOAD, () => downloadUpdate());
+  ipcMain.handle(IPC_CHANNELS.UPDATE_INSTALL, () => quitAndInstall());
 
   // ── Shell ──
   ipcMain.handle(IPC_CHANNELS.SHELL_OPEN_PATH, async (_event, targetPath: string) => {
@@ -284,7 +281,10 @@ function registerIpcHandlers(): void {
       const options: Electron.OpenDialogOptions = {
         title: '选择文件',
         properties: ['openFile'],
-        filters: [{ name: 'Executable', extensions: ['exe'] }, { name: 'All files', extensions: ['*'] }],
+        filters: [
+          { name: 'Executable', extensions: ['exe'] },
+          { name: 'All files', extensions: ['*'] },
+        ],
       };
       const result =
         mainWindow && !mainWindow.isDestroyed()
@@ -371,7 +371,11 @@ function registerIpcHandlers(): void {
       });
       return { success: true };
     } catch (err) {
-      return { success: false, error: err instanceof Error ? err.message : String(err), cancelled: (err as Error).message.includes('取消') };
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : String(err),
+        cancelled: (err as Error).message.includes('取消'),
+      };
     }
   });
   ipcMain.handle(IPC_CHANNELS.FONT_CANCEL, () => {
@@ -380,24 +384,28 @@ function registerIpcHandlers(): void {
   });
 
   // ── Modpack export ──
-  ipcMain.handle(
-    IPC_CHANNELS.MODPACK_EXPORT,
-    async (_event, versionId: string, options: ModpackExportOptions) => {
-      const hit = scanInstalledVersions().find((v) => v.id === versionId);
-      const gameDir = hit ? hit.gameDir : getDefaultGameDir();
-      const dialogOpts = {
-        title: '导出整合包',
-        defaultPath: `${versionId}.zip`,
-        filters: [{ name: 'ZIP', extensions: ['zip'] }],
-      };
-      const result =
-        mainWindow && !mainWindow.isDestroyed()
-          ? await dialog.showSaveDialog(mainWindow, dialogOpts)
-          : await dialog.showSaveDialog(dialogOpts);
-      if (result.canceled || !result.filePath) return { success: false, error: '已取消' };
-      return exportModpack(gameDir, options, result.filePath);
-    },
-  );
+  ipcMain.handle(IPC_CHANNELS.MODPACK_EXPORT, async (_event, versionId: string, options: ModpackExportOptions) => {
+    const hit = scanInstalledVersions().find((v) => v.id === versionId);
+    const gameDir = hit ? hit.gameDir : getDefaultGameDir();
+    const dialogOpts = {
+      title: '导出整合包',
+      defaultPath: `${versionId}.zip`,
+      filters: [{ name: 'ZIP', extensions: ['zip'] }],
+    };
+    const result =
+      mainWindow && !mainWindow.isDestroyed()
+        ? await dialog.showSaveDialog(mainWindow, dialogOpts)
+        : await dialog.showSaveDialog(dialogOpts);
+    if (result.canceled || !result.filePath) return { success: false, error: '已取消' };
+    return exportModpack(gameDir, options, result.filePath);
+  });
+
+  // List the mod files inside a version's mods/ folder (for selective export).
+  ipcMain.handle(IPC_CHANNELS.MODPACK_LIST_MODS, (_event, versionId: string) => {
+    const hit = scanInstalledVersions().find((v) => v.id === versionId);
+    const gameDir = hit ? hit.gameDir : getDefaultGameDir();
+    return { success: true, mods: listModpackMods(gameDir) };
+  });
 
   // ── Mod loader install ──
   ipcMain.handle(IPC_CHANNELS.LOADER_INSTALL, async (_event, loader: LoaderKey, gameVersion: string) => {
@@ -460,57 +468,49 @@ function registerIpcHandlers(): void {
     return { success: true };
   });
 
-  ipcMain.handle(
-    IPC_CHANNELS.EXPORT_LAUNCH_SCRIPT,
-    async (_event, versionId: string, options?: LaunchOptions) => {
-      const account = getCurrentAccount();
-      const auth = account
-        ? {
-            playerName: account.name,
-            uuid: account.uuid,
-            accessToken:
-              account.type === 'microsoft'
-                ? account.minecraftToken || '0'
-                : account.yggdrasilToken || '0',
-          }
-        : { playerName: 'Player', uuid: offlineUUID('Player'), accessToken: '0' };
-      return exportLaunchScript(versionId, auth, options);
-    },
-  );
+  ipcMain.handle(IPC_CHANNELS.EXPORT_LAUNCH_SCRIPT, async (_event, versionId: string, options?: LaunchOptions) => {
+    const account = getCurrentAccount();
+    const auth = account
+      ? {
+          playerName: account.name,
+          uuid: account.uuid,
+          accessToken: account.type === 'microsoft' ? account.minecraftToken || '0' : account.yggdrasilToken || '0',
+        }
+      : { playerName: 'Player', uuid: offlineUUID('Player'), accessToken: '0' };
+    return exportLaunchScript(versionId, auth, options);
+  });
 
   ipcMain.handle(
     IPC_CHANNELS.LAUNCH_GAME,
     async (_event, versionId: string, playerName: string, options?: LaunchOptions) => {
-    const account = getCurrentAccount();
-    const auth = account
-      ? {
-          playerName: account.name || playerName,
-          uuid: account.uuid,
-          accessToken:
-            account.type === 'microsoft'
-              ? account.minecraftToken || '0'
-              : account.yggdrasilToken || '0',
-        }
-      : {
-          playerName: playerName || 'Player',
-          uuid: offlineUUID(playerName || 'Player'),
-          accessToken: '0',
-        };
-    // Launch from the game directory that actually contains this version
-    const hit = scanInstalledVersions().find((v) => v.id === versionId);
-    const gameDir = hit ? hit.gameDir : getDefaultGameDir();
-    return launchGame(
-      versionId,
-      auth,
-      (progress) => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send(IPC_CHANNELS.LAUNCH_PROGRESS, progress);
-        }
-      },
-      gameDir,
-      options,
-    );
-  });
+      const account = getCurrentAccount();
+      const auth = account
+        ? {
+            playerName: account.name || playerName,
+            uuid: account.uuid,
+            accessToken: account.type === 'microsoft' ? account.minecraftToken || '0' : account.yggdrasilToken || '0',
+          }
+        : {
+            playerName: playerName || 'Player',
+            uuid: offlineUUID(playerName || 'Player'),
+            accessToken: '0',
+          };
+      // Launch from the game directory that actually contains this version
+      const hit = scanInstalledVersions().find((v) => v.id === versionId);
+      const gameDir = hit ? hit.gameDir : getDefaultGameDir();
+      return launchGame(
+        versionId,
+        auth,
+        (progress) => {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send(IPC_CHANNELS.LAUNCH_PROGRESS, progress);
+          }
+        },
+        gameDir,
+        options,
+      );
+    },
+  );
 
   // ── EasyTier P2P + LAN scan ──
   ipcMain.handle(IPC_CHANNELS.TERRACOTTA_START, async (_event, port?: number) => {

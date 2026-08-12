@@ -154,14 +154,18 @@ export default function ModrinthSearch({ category, gameVersion, loader, gameDir 
 
       {loading ? (
         <div className="mods-empty">
-          <span className="mods-empty-icon"><Package size={32} /></span>
+          <span className="mods-empty-icon">
+            <Package size={32} />
+          </span>
           <p>{t('mods.loading')}</p>
         </div>
       ) : (
         <>
           {searched && results.length === 0 && (
             <div className="mods-empty">
-              <span className="mods-empty-icon"><Search size={32} /></span>
+              <span className="mods-empty-icon">
+                <Search size={32} />
+              </span>
               <p>{t('mods.no_results')}</p>
             </div>
           )}
@@ -208,7 +212,9 @@ function ModCard({
         <span className="mod-card-desc">{hit.description}</span>
       </div>
       <div className="mod-card-side">
-        <span className="mod-card-downloads"><Download size={13} /> {formatDownloads(hit.downloads)}</span>
+        <span className="mod-card-downloads">
+          <Download size={13} /> {formatDownloads(hit.downloads)}
+        </span>
         {downloading ? (
           <div className="mod-card-progress">
             <span className="download-progress-bar" style={{ width: `${progress?.percent ?? 0}%` }} />

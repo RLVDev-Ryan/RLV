@@ -29,10 +29,7 @@ export function isFontCached(family: string): boolean {
  * Download a font family (all its files) into the cache. Reports overall
  * percent across files; throws on failure; respects cancelFontDownload().
  */
-export async function downloadFont(
-  family: string,
-  onProgress: (percent: number) => void,
-): Promise<void> {
+export async function downloadFont(family: string, onProgress: (percent: number) => void): Promise<void> {
   const spec = FONT_MANIFEST[family];
   if (!spec) throw new Error(`未知字体: ${family}`);
   if (spec.bundled) return;
@@ -53,7 +50,7 @@ export async function downloadFont(
     await downloadFile(
       fontDownloadUrl(family, f.file),
       dest,
-      (pct) => onProgress(Math.round(base + (pct / total))),
+      (pct) => onProgress(Math.round(base + pct / total)),
       cancelSignal,
     );
   }
