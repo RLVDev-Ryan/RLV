@@ -329,5 +329,7 @@
   "settings.open_data_dir": "データフォルダを開く",
   "settings.music.open_dir": "音楽フォルダを開く",
   "settings.music.now_playing": "再生中",
-  "settings.music.not_playing": "再生されていません"
+  "settings.music.not_playing": "再生されていません",
+  "settings.music.default_root": "デフォルトの音楽フォルダ",
+  "settings.music.loading": "読み込み中…"
 }

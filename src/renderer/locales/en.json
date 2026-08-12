@@ -329,5 +329,7 @@
   "settings.open_data_dir": "Open data folder",
   "settings.music.open_dir": "Open music folder",
   "settings.music.now_playing": "Now playing",
-  "settings.music.not_playing": "Not playing"
+  "settings.music.not_playing": "Not playing",
+  "settings.music.default_root": "Default music folder",
+  "settings.music.loading": "Loading…"
 }

@@ -329,5 +329,7 @@
   "settings.open_data_dir": "打开数据目录",
   "settings.music.open_dir": "打开音乐目录",
   "settings.music.now_playing": "正在播放",
-  "settings.music.not_playing": "未在播放"
+  "settings.music.not_playing": "未在播放",
+  "settings.music.default_root": "默认音乐文件夹",
+  "settings.music.loading": "读取中…"
 }

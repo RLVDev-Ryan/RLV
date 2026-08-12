@@ -44,6 +44,11 @@ export function getPlaylist(): MusicTrack[] {
     }));
 }
 
+/** Playlist info for the UI — the resolved root and the tracks. */
+export function getPlaylistInfo(): { tracks: MusicTrack[]; root: string } {
+  return { tracks: getPlaylist(), root: playlistRoot() };
+}
+
 /** Serve audio files to the renderer. */
 export function registerAudioProtocol(): void {
   protocol.handle('rlv-audio', (request) => {

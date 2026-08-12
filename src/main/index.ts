@@ -25,7 +25,7 @@ import { exportModpack } from './modpack/modpackExporter';
 import { isFontCached, downloadFont, cancelFontDownload, registerFontProtocol } from './fonts/fontManager';
 import { applyPortablePaths, ensureDataDirs } from './paths';
 import { getAllConfigs, loadConfig, saveConfig, configDir } from './config/configManager';
-import { getPlaylist, playlistRoot, registerAudioProtocol } from './music/musicManager';
+import { getPlaylistInfo, playlistRoot, registerAudioProtocol } from './music/musicManager';
 import type { ConfigName } from '../shared/config';
 import type { LoaderKey, LoaderInstallProgress, ModpackExportOptions } from '../shared/constants';
 import { initAutoUpdater, downloadUpdate, quitAndInstall, setUpdaterWindow } from './updater/updater';
@@ -347,7 +347,7 @@ function registerIpcHandlers(): void {
   });
 
   // ── Background music ──
-  ipcMain.handle(IPC_CHANNELS.MUSIC_GET_PLAYLIST, () => ({ tracks: getPlaylist() }));
+  ipcMain.handle(IPC_CHANNELS.MUSIC_GET_PLAYLIST, () => getPlaylistInfo());
   ipcMain.handle(IPC_CHANNELS.MUSIC_OPEN_DIR, async () => {
     try {
       fs.mkdirSync(playlistRoot(), { recursive: true });

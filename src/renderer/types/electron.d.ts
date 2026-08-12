@@ -109,7 +109,7 @@ export interface ConfigAPI {
 }
 
 export interface MusicAPI {
-  getPlaylist: () => Promise<{ tracks: { name: string; url: string }[] }>;
+  getPlaylist: () => Promise<{ tracks: { name: string; url: string }[]; root: string }>;
   openDir: () => Promise<{ success: boolean; error?: string }>;
 }
 

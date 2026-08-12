@@ -3531,3 +3531,12 @@ body,
 .music-now-playing-idle {
   color: var(--text-muted);
 }
+
+/* Music default-folder hint */
+.music-default-hint {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: 'Cascadia Code', Consolas, monospace;
+  word-break: break-all;
+}

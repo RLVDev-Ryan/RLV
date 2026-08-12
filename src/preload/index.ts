@@ -142,7 +142,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // ── Background music ──
   music: {
-    getPlaylist: (): Promise<{ tracks: { name: string; url: string }[] }> =>
+    getPlaylist: (): Promise<{ tracks: { name: string; url: string }[]; root: string }> =>
       ipcRenderer.invoke(IPC_CHANNELS.MUSIC_GET_PLAYLIST),
     openDir: (): Promise<{ success: boolean; error?: string }> =>
       ipcRenderer.invoke(IPC_CHANNELS.MUSIC_OPEN_DIR),

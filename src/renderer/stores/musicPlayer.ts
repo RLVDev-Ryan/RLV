@@ -7,6 +7,7 @@ let tracks: { name: string; url: string }[] = [];
 let index = 0;
 let playing = false;
 let lastRoot = '';
+let resolvedRoot = '';
 let listeners: Array<() => void> = [];
 
 function notify() {
@@ -59,6 +60,10 @@ export const musicPlayer = {
   get currentIndex() {
     return tracks.length ? index + 1 : 0;
   },
+  /** The resolved playlist folder (defaults to the app's music dir). */
+  get root() {
+    return resolvedRoot;
+  },
 
   subscribe(fn: () => void) {
     listeners.push(fn);
@@ -83,6 +88,7 @@ export const musicPlayer = {
     if (root !== lastRoot) {
       const res = await window.electronAPI.music.getPlaylist();
       tracks = res?.tracks ?? [];
+      resolvedRoot = res?.root ?? '';
       index = 0;
       lastRoot = root;
     }

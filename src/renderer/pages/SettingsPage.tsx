@@ -737,6 +737,11 @@ function PersonalizationSection({
             <span className="music-now-playing-idle">{t('settings.music.not_playing')}</span>
           )}
         </div>
+        {!musicCfg.playlistPath && (
+          <div className="music-default-hint">
+            {t('settings.music.default_root')}: {musicPlayer.root || t('settings.music.loading')}
+          </div>
+        )}
       </div>
 
       {/* 配置目录 */}
