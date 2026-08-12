@@ -235,6 +235,7 @@
   "about.cat.api": "資料與 API",
   "account.device_code_hint": "請在開啟的網頁中輸入此代碼完成登入（已自動複製）：",
   "account.copy_code": "複製代碼",
+  "account.login_failed": "登入失敗，請重試",
   "download.loader_not_supported": "載入器安裝暫未支援，請先下載原版（Fabric/Forge 將在後續版本支援）",
   "version.settings_saved": "啟動設定已儲存",
   "version.exported_to": "啟動指令碼已匯出到：",

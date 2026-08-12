@@ -4,9 +4,10 @@ import { useI18n } from '../hooks/useI18n';
 interface AddAccountDialogProps {
   open: boolean;
   onClose: () => void;
-  onMicrosoft: () => Promise<void>;
-  onYggdrasil: (serverUrl: string, username: string, password: string) => Promise<void>;
-  onOffline: (username: string) => Promise<void>;
+  /** Returns an error message on failure, or null on success. */
+  onMicrosoft: () => Promise<string | null>;
+  onYggdrasil: (serverUrl: string, username: string, password: string) => Promise<string | null>;
+  onOffline: (username: string) => Promise<string | null>;
 }
 
 type Step = 'choose' | 'yggdrasil' | 'offline';
@@ -26,6 +27,7 @@ export default function AddAccountDialog({
   const [offlineName, setOfflineName] = useState('');
   const [loading, setLoading] = useState(false);
   const [deviceCode, setDeviceCode] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Show the Microsoft device-code inside the dialog while the user is
   // authenticating in the opened browser window.
@@ -34,9 +36,12 @@ export default function AddAccountDialog({
     return window.electronAPI.accounts.onDeviceCode((code) => setDeviceCode(code));
   }, []);
 
-  // Clear the code when the dialog closes.
+  // Clear transient state when the dialog closes.
   useEffect(() => {
-    if (!open) setDeviceCode(null);
+    if (!open) {
+      setDeviceCode(null);
+      setError(null);
+    }
   }, [open]);
 
   if (!open) return null;
@@ -45,13 +50,16 @@ export default function AddAccountDialog({
     setStep('choose');
     setPassword('');
     setOfflineName('');
+    setError(null);
   };
 
   const handleYggdrasilSubmit = async () => {
     if (!serverUrl.trim() || !username.trim() || !password.trim()) return;
     setLoading(true);
+    setError(null);
     try {
-      await onYggdrasil(serverUrl.trim(), username.trim(), password);
+      const err = await onYggdrasil(serverUrl.trim(), username.trim(), password);
+      setError(err);
     } finally {
       setLoading(false);
     }
@@ -60,8 +68,10 @@ export default function AddAccountDialog({
   const handleOfflineSubmit = async () => {
     if (!offlineName.trim()) return;
     setLoading(true);
+    setError(null);
     try {
-      await onOffline(offlineName.trim());
+      const err = await onOffline(offlineName.trim());
+      setError(err);
     } finally {
       setLoading(false);
     }
@@ -69,8 +79,10 @@ export default function AddAccountDialog({
 
   const handleMicrosoft = async () => {
     setLoading(true);
+    setError(null);
     try {
-      await onMicrosoft();
+      const err = await onMicrosoft();
+      setError(err);
     } finally {
       setLoading(false);
     }
@@ -221,6 +233,7 @@ export default function AddAccountDialog({
                 </svg>
               </button>
             </div>
+            {error && <div className="dialog-error">{error}</div>}
           </div>
         )}
 
@@ -259,6 +272,7 @@ export default function AddAccountDialog({
                 }}
               />
             </div>
+            {error && <div className="dialog-error">{error}</div>}
             <div className="dialog-actions">
               <button className="btn btn--ghost" onClick={handleBack}>
                 {t('account.back')}
@@ -290,6 +304,7 @@ export default function AddAccountDialog({
                 maxLength={16}
               />
             </div>
+            {error && <div className="dialog-error">{error}</div>}
             <div className="dialog-actions">
               <button className="btn btn--ghost" onClick={handleBack}>
                 {t('account.back')}

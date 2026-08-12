@@ -249,6 +249,7 @@
   "about.cat.api": "资料与 API",
   "account.device_code_hint": "请在打开的网页中输入此代码完成登录（已自动复制）：",
   "account.copy_code": "复制代码",
+  "account.login_failed": "登录失败，请重试",
   "download.loader_not_supported": "加载器安装暂未支持，请先下载原版（Fabric/Forge 将在后续版本支持）",
   "version.settings_saved": "启动设置已保存",
   "version.exported_to": "启动脚本已导出到：",

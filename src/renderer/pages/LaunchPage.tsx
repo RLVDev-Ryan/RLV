@@ -73,39 +73,54 @@ export default function LaunchPage() {
     if (acc) setCurrentAccount(acc);
   }, []);
 
-  const handleMicrosoftLogin = useCallback(async () => {
-    if (!window.electronAPI) return;
+  // Each login handler returns an error message (or null on success) so the
+  // dialog can stay open and show the reason instead of silently closing.
+  const handleMicrosoftLogin = useCallback(async (): Promise<string | null> => {
+    if (!window.electronAPI) return t('account.login_failed');
     const account = await window.electronAPI.accounts.addMicrosoft();
     if (account) {
       setAccounts((prev) => [...prev.filter((a) => a.id !== account.id), account]);
       setCurrentAccount(account);
+      setShowAddAccount(false);
+      return null;
     }
-    setShowAddAccount(false);
-  }, []);
+    return t('account.login_failed');
+  }, [t]);
 
-  const handleYggdrasilLogin = useCallback(async (serverUrl: string, username: string, password: string) => {
-    if (!window.electronAPI) return;
-    const account = await window.electronAPI.accounts.addYggdrasil({
-      serverUrl,
-      username,
-      password,
-    });
-    if (account) {
-      setAccounts((prev) => [...prev.filter((a) => a.id !== account.id), account]);
-      setCurrentAccount(account);
-    }
-    setShowAddAccount(false);
-  }, []);
+  const handleYggdrasilLogin = useCallback(
+    async (serverUrl: string, username: string, password: string): Promise<string | null> => {
+      if (!window.electronAPI) return t('account.login_failed');
+      const result = await window.electronAPI.accounts.addYggdrasil({
+        serverUrl,
+        username,
+        password,
+      });
+      if (result.success && result.account) {
+        const account = result.account;
+        setAccounts((prev) => [...prev.filter((a) => a.id !== account.id), account]);
+        setCurrentAccount(account);
+        setShowAddAccount(false);
+        return null;
+      }
+      return result.error || t('account.login_failed');
+    },
+    [t],
+  );
 
-  const handleOfflineLogin = useCallback(async (username: string) => {
-    if (!window.electronAPI) return;
-    const account = await window.electronAPI.accounts.addOffline(username);
-    if (account) {
-      setAccounts((prev) => [...prev.filter((a) => a.id !== account.id), account]);
-      setCurrentAccount(account);
-    }
-    setShowAddAccount(false);
-  }, []);
+  const handleOfflineLogin = useCallback(
+    async (username: string): Promise<string | null> => {
+      if (!window.electronAPI) return t('account.login_failed');
+      const account = await window.electronAPI.accounts.addOffline(username);
+      if (account) {
+        setAccounts((prev) => [...prev.filter((a) => a.id !== account.id), account]);
+        setCurrentAccount(account);
+        setShowAddAccount(false);
+        return null;
+      }
+      return t('account.login_failed');
+    },
+    [t],
+  );
 
   const handleRemoveAccount = useCallback(async (id: string) => {
     if (!window.electronAPI) return;

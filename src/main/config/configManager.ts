@@ -28,6 +28,9 @@ function configFile(name: ConfigName): string {
 
 /** Deep-merge two plain objects (used to merge user config onto defaults). */
 function deepMerge<T>(base: T, override: unknown): T {
+  // Arrays must stay arrays — a `{}` override for e.g. jvmArgs must not replace
+  // the default `[]` (that would crash renderers calling .join()).
+  if (Array.isArray(base)) return (Array.isArray(override) ? override : base) as T;
   if (base && typeof base === 'object' && override && typeof override === 'object') {
     const out: Record<string, unknown> = { ...(base as Record<string, unknown>) };
     for (const [k, v] of Object.entries(override as Record<string, unknown>)) {

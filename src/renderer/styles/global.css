@@ -875,6 +875,18 @@ body,
   margin-bottom: 16px;
 }
 
+.dialog-error {
+  margin-top: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--danger, #e05c5c);
+  background: rgba(224, 92, 92, 0.1);
+  border: 1px solid rgba(224, 92, 92, 0.25);
+  border-radius: var(--radius-md);
+  word-break: break-word;
+}
+
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
@@ -3646,38 +3658,9 @@ body,
   word-break: break-all;
 }
 
-/* ── Wide-window (maximized / large monitor) adaptation ── */
-@media (min-width: 1200px) {
-  .launch-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(460px, 1fr));
-  }
-}
-
-@media (min-width: 1600px) {
-  .app-content {
-    zoom: 1.06;
-  }
-  .download-hub-ring {
-    width: 520px;
-    height: 520px;
-  }
-  .hub-btn {
-    width: 96px;
-    height: 96px;
-    margin-left: -48px;
-    margin-top: -48px;
-  }
-  .hub-btn--center {
-    width: 120px;
-    height: 120px;
-    margin-left: -60px;
-    margin-top: -60px;
-  }
-}
-
-@media (min-width: 2200px) {
-  .app-content {
-    zoom: 1.1;
-  }
-}
+/* ── Wide-window (maximized / large monitor) adaptation ──
+   Dynamic proportional scaling is handled by src/renderer/uiScale.ts: the whole
+   document is zoomed by windowWidth / DESIGN_WIDTH, so a maximized window is a
+   proportional, screen-filling version of the default 1000px layout (text,
+   buttons and the download hub all grow together). No static media queries here
+   — they'd double-scale against the zoomed layout viewport. */

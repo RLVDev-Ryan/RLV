@@ -213,11 +213,11 @@ function registerIpcHandlers(): void {
   ipcMain.handle(
     IPC_CHANNELS.ACCOUNTS_ADD_YGGDRASIL,
     async (_event, params: { serverUrl: string; username: string; password: string }) => {
-      const account = await authenticateYggdrasil(params.serverUrl, params.username, params.password);
-      if (account) {
-        addAccount(account, true);
+      const result = await authenticateYggdrasil(params.serverUrl, params.username, params.password);
+      if (result.success && result.account) {
+        addAccount(result.account, true);
       }
-      return account;
+      return result;
     },
   );
 

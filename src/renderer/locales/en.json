@@ -235,6 +235,7 @@
   "about.cat.api": "Docs & APIs",
   "account.device_code_hint": "Enter this code on the opened web page to finish signing in (copied):",
   "account.copy_code": "Copy code",
+  "account.login_failed": "Login failed, please try again",
   "download.loader_not_supported": "Loader installation is not supported yet. Download the vanilla version first (Fabric/Forge coming later)",
   "version.settings_saved": "Launch settings saved",
   "version.exported_to": "Launch script exported to:",

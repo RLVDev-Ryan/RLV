@@ -21,7 +21,11 @@ export interface AccountAPI {
   getCurrent: () => Promise<Account | null>;
   setCurrent: (id: string) => Promise<Account | null>;
   addMicrosoft: () => Promise<Account | null>;
-  addYggdrasil: (params: { serverUrl: string; username: string; password: string }) => Promise<Account | null>;
+  addYggdrasil: (params: {
+    serverUrl: string;
+    username: string;
+    password: string;
+  }) => Promise<{ success: boolean; account?: Account; error?: string }>;
   addOffline: (username: string) => Promise<Account | null>;
   remove: (id: string) => Promise<boolean>;
   onDeviceCode: (callback: (code: string) => void) => () => void;

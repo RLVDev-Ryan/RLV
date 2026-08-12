@@ -235,6 +235,7 @@
   "about.cat.api": "資料と API",
   "account.device_code_hint": "開いたウェブページにこのコードを入力してログインを完了してください（自動コピー済み）：",
   "account.copy_code": "コードをコピー",
+  "account.login_failed": "ログインに失敗しました。もう一度お試しください",
   "download.loader_not_supported": "ローダーのインストールは未対応です。まず原版をダウンロードしてください（Fabric/Forge は今後対応予定）",
   "version.settings_saved": "起動設定を保存しました",
   "version.exported_to": "起動スクリプトをエクスポートしました：",

@@ -12,6 +12,7 @@ import { launchStore } from './stores/launchStore';
 import { configStore } from './stores/configStore';
 import { hydrateFromConfig } from './stores/themeStore';
 import { musicPlayer } from './stores/musicPlayer';
+import { applyScale } from './uiScale';
 
 const pageMap: Record<NavKey, React.FC> = {
   launch: LaunchPage,
@@ -31,6 +32,13 @@ export default function App() {
       hydrateFromConfig();
       musicPlayer.sync();
     });
+  }, []);
+
+  // Proportional content scaling for wide / maximized windows.
+  useEffect(() => {
+    applyScale();
+    window.addEventListener('resize', applyScale);
+    return () => window.removeEventListener('resize', applyScale);
   }, []);
 
   // Re-sync the music player when the music config changes.

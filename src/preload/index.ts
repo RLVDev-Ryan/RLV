@@ -223,7 +223,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getCurrent: (): Promise<Account | null> => ipcRenderer.invoke(IPC_CHANNELS.ACCOUNTS_GET_CURRENT),
     setCurrent: (id: string): Promise<Account | null> => ipcRenderer.invoke(IPC_CHANNELS.ACCOUNTS_SET_CURRENT, id),
     addMicrosoft: (): Promise<Account | null> => ipcRenderer.invoke(IPC_CHANNELS.ACCOUNTS_ADD_MICROSOFT),
-    addYggdrasil: (params: { serverUrl: string; username: string; password: string }): Promise<Account | null> =>
+    addYggdrasil: (params: {
+      serverUrl: string;
+      username: string;
+      password: string;
+    }): Promise<{ success: boolean; account?: Account; error?: string }> =>
       ipcRenderer.invoke(IPC_CHANNELS.ACCOUNTS_ADD_YGGDRASIL, params),
     addOffline: (username: string): Promise<Account | null> =>
       ipcRenderer.invoke(IPC_CHANNELS.ACCOUNTS_ADD_OFFLINE, username),
