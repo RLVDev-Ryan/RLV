@@ -2,6 +2,7 @@ export type AppLocale = 'zh-CN' | 'zh-TW' | 'ja' | 'ko' | 'en';
 
 import { emitLocaleChange } from './localeBridge';
 import { configStore } from './configStore';
+import { injectFontFace } from './fontStore';
 
 // Default font is 黑体 (sans-serif); serif/Maple are downloaded on demand.
 const LOCALE_FONT: Record<AppLocale, string> = {
@@ -69,6 +70,14 @@ export function hydrateFromConfig(): void {
   };
   if (current.mode !== 'dark') lightAccent = current.accentColor;
   applyTheme(current);
+  // Re-inject @font-face rules for on-demand fonts persisted in the config —
+  // otherwise a downloaded font is "selected" after restart but falls back to
+  // Segoe UI because its <style> tag is gone. Bundled fonts no-op here.
+  injectFontFace(current.fontFamily ?? '');
+  injectFontFace(current.fontContent ?? '');
+  injectFontFace(current.fontButtons ?? '');
+  injectFontFace(current.fontLogs ?? '');
+  injectFontFace(LOCALE_FONT[current.locale] ?? '');
   loadBgImage().then(() => applyTheme(current));
 }
 
@@ -164,6 +173,9 @@ export function applyTheme(settings: ThemeSettings): void {
   root.style.setProperty('--radius-sm', `${Math.max(2, ui.radius - 2)}px`);
   root.style.setProperty('--radius-md', `${ui.radius}px`);
   root.style.setProperty('--radius-lg', `${ui.radius + 4}px`);
+
+  // Music float-ball radius — its own value unless it follows the global radius.
+  root.style.setProperty('--music-ball-radius', `${ui.musicBallRadiusFollow ? ui.radius : ui.musicBallRadius}px`);
 
   // Button mode
   if (settings.buttonMode === 'white') {

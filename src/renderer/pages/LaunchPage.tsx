@@ -147,12 +147,12 @@ export default function LaunchPage() {
         isolation: settings.isolation,
         javaPath: settings.javaPath ?? undefined,
       });
-      if (!cancelledRef.current && !result.success && result.error) {
-        launchStore.setProgress({ stage: 'error', percent: 0, error: result.error });
+      if (!cancelledRef.current && !result.success) {
+        launchStore.fail(result.error || t('launch.failed'));
       }
     } catch (err) {
       if (!cancelledRef.current) {
-        launchStore.setProgress({ stage: 'error', percent: 0, error: String(err) });
+        launchStore.fail(String(err));
       }
     }
   }, [selectedVersion, currentAccount, t]);

@@ -64,7 +64,7 @@ function resolveBin(name: 'easytier-core.exe' | 'easytier-cli.exe'): string {
     if (fs.existsSync(byCwd)) {
       resolved = byCwd;
     } else {
-      resolved = path.resolve(__dirname, '../../../../../resources/bin/easytier', name);
+      resolved = path.resolve(__dirname, '../../../../resources/bin/easytier', name);
     }
   } else {
     resolved = path.join(process.resourcesPath, 'bin', 'easytier', name);

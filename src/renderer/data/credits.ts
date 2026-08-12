@@ -213,9 +213,19 @@ export const CREDITS: CreditDetail[] = [
     category: '联机',
     license: 'Apache-2.0',
     licenseUrl: 'https://github.com/EasyTier/EasyTier?tab=Apache-2.0-1-ov-file#readme',
-    usage: '通过调用 EasyTier 官方程序 easytier-core（随启动器分发）建立 P2P 虚拟局域网，配合 Minecraft 局域网联机。',
+    usage: '作为 P2P 组网层：随启动器分发 easytier-core，在玩家之间建立虚拟局域网，配合 Minecraft 局域网联机。',
     licenseRequirements: 'Apache-2.0 允许自由使用与分发；作为独立二进制随启动器分发。',
     disclaimer: 'EasyTier 为独立开源项目，其联机效果取决于网络环境，本启动器不对其负责。',
+  },
+  {
+    name: 'Terracotta',
+    url: 'https://github.com/burningtnt/Terracotta',
+    category: '联机',
+    license: 'AGPL-3.0',
+    licenseUrl: 'https://github.com/burningtnt/Terracotta?tab=AGPL-3.0-1-ov-file#readme',
+    usage: '参考其联机协议（Scaffolding）与房间 / 局域网发现逻辑设计；RLV 以自研实现与该协议通信，未捆绑或复制其代码。',
+    licenseRequirements: 'Terracotta 遵循 AGPL-3.0（含捆绑 / IPC 例外）；RLV 仅参考协议设计，为独立实现的 MIT 项目。',
+    disclaimer: 'Terracotta 为 HMCL 生态的联机项目，与本启动器无隶属关系。',
   },
 
   // ── 资料与 API ──

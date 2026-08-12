@@ -4,6 +4,7 @@ import os from 'os';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import dgram from 'dgram';
 import {
   IPC_CHANNELS,
   type RoomPlayer,
@@ -36,10 +37,14 @@ import { startScaffoldingServer, ScaffoldingClient, FINGERPRINT, type Scaffoldin
 
 const HOST_VPN_IP = '10.144.144.1';
 const SCAFFOLDING_PORT = 13448;
-const HOST_HOSTNAME_PREFIX = 'rlv-mc-server-';
+// Terracotta-compatible host hostname — other launchers discover the host by
+// this prefix in the EasyTier peer list.
+const HOST_HOSTNAME_PREFIX = 'scaffolding-mc-server-';
 const GUEST_HOSTNAME_PREFIX = 'rlv-guest-';
 const HOST_DISCOVER_ATTEMPTS = 5;
 const HOST_DISCOVER_INTERVAL_MS = 3000;
+/** Public EasyTier nodes used as rendezvous peers (same as Terracotta). */
+const PUBLIC_SERVERS = ['tcp://public.easytier.top:11010', 'tcp://public2.easytier.cn:54321'];
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -122,12 +127,52 @@ function isPrivateIPv4(ip: string): boolean {
 }
 
 /**
- * Best local IPv4 for the invite code — a real LAN adapter, not a virtual one.
- * Enumerates os.networkInterfaces(), skips virtual/VPN adapters by name and the
- * EasyTier subnet, and prefers private LAN ranges. (The UDP-connect trick was
- * abandoned — it can hang in sandboxed/offline environments.)
+ * Best local IPv4 for the invite code. Prefers a UDP egress probe (the OS picks
+ * the interface the peer can actually reach), falling back to the adapter
+ * heuristics when the probe fails or times out.
  */
-export function getLocalIP(): string | null {
+export async function getLocalIP(): Promise<string | null> {
+  const probed = await probeEgressIP();
+  if (probed) return probed;
+  return heuristicLocalIP();
+}
+
+/**
+ * UDP egress probe: `dgram.connect()` to a public server makes the OS select
+ * the egress interface WITHOUT sending any packet; `socket.address()` then
+ * reports the local IP the peer would see. Short timeout + fallback so it can
+ * never hang startup (the reason the trick was abandoned before).
+ */
+function probeEgressIP(timeoutMs = 800): Promise<string | null> {
+  return new Promise((resolve) => {
+    try {
+      const sock = dgram.createSocket('udp4');
+      let done = false;
+      const finish = (ip: string | null) => {
+        if (done) return;
+        done = true;
+        try {
+          sock.close();
+        } catch {}
+        resolve(ip);
+      };
+      sock.once('error', () => finish(null));
+      sock.connect(9, '1.1.1.1', () => {
+        const addr = sock.address().address;
+        finish(typeof addr === 'string' && addr && !addr.startsWith('127.') ? addr : null);
+      });
+      setTimeout(() => finish(null), timeoutMs);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+/**
+ * Fallback heuristic: enumerate os.networkInterfaces(), skip virtual/VPN
+ * adapters by name and the EasyTier subnet, prefer private LAN ranges.
+ */
+function heuristicLocalIP(): string | null {
   const ifaces = os.networkInterfaces();
   const candidates: { ip: string; name: string }[] = [];
 
@@ -273,10 +318,11 @@ export async function startEasyTierHost(port?: number, playerName?: string): Pro
     }
   }
 
-  // 3. easytier host node.
+  // 3. easytier host node — join the mesh via public rendezvous nodes; guests
+  //    discover us from the peer list by hostname, so no address is embedded
+  //    in the invite code (same scheme as Terracotta).
   const rpc = await requestPort(true);
-  const listener = await requestPort(false);
-  if (rpc === 0 || listener === 0) {
+  if (rpc === 0) {
     scaffolding.stop();
     return { success: false, inviteCode: null, error: '无法分配端口' };
   }
@@ -287,11 +333,12 @@ export async function startEasyTierHost(port?: number, playerName?: string): Pro
       room.networkName,
       '--network-secret',
       room.networkSecret,
+      ...PUBLIC_SERVERS.flatMap((s) => ['-p', s]),
       '--no-tun',
       '--ipv4',
       HOST_VPN_IP,
       '-l',
-      `tcp://0.0.0.0:${listener}`,
+      'tcp://0.0.0.0:0',
       '-l',
       'udp://0.0.0.0:0',
       '--hostname',
@@ -320,18 +367,11 @@ export async function startEasyTierHost(port?: number, playerName?: string): Pro
     return { success: false, inviteCode: null, error: 'EasyTier 启动失败' };
   }
 
-  const ip = getLocalIP();
-  if (!ip) {
-    killProcessTree(handle.pid);
-    scaffolding.stop();
-    return { success: false, inviteCode: null, error: '无法确定本机局域网地址' };
-  }
-
   easyTier = handle;
   scaffoldingServer = scaffolding;
   mode = 'host';
 
-  const inviteCode = encodeInviteCode(room, ip, listener);
+  const inviteCode = encodeInviteCode(room);
 
   // Watchdog: surface a dead easytier to the UI.
   startWatchdog('host');
@@ -344,14 +384,14 @@ export async function startEasyTierGuest(code: string, playerName?: string): Pro
     return { success: false, error: '已连接房间' };
   }
 
-  const decoded = decodeInviteCode(code);
-  if (!decoded) {
+  const room = decodeInviteCode(code);
+  if (!room) {
     return { success: false, error: '邀请码无效，请检查后重试' };
   }
-  const { room, hostIP, listenerPort } = decoded;
   guestPlayerName = playerName || 'RLV 玩家';
 
-  // 1. Guest easytier node.
+  // 1. Guest easytier node — join the mesh via public rendezvous nodes, then
+  //    discover the host from the peer list (invite carries no address).
   const rpc = await requestPort(true);
   if (rpc === 0) return { success: false, error: '无法分配端口' };
   guestHostname = `${GUEST_HOSTNAME_PREFIX}${crypto.randomBytes(3).toString('hex')}`;
@@ -361,14 +401,13 @@ export async function startEasyTierGuest(code: string, playerName?: string): Pro
       room.networkName,
       '--network-secret',
       room.networkSecret,
+      ...PUBLIC_SERVERS.flatMap((s) => ['-p', s]),
       '--no-tun',
       '-d',
       '-l',
       'tcp://0.0.0.0:0',
       '-l',
       'udp://0.0.0.0:0',
-      '-p',
-      `tcp://${hostIP}:${listenerPort}`,
       '--hostname',
       guestHostname,
       '--compression',

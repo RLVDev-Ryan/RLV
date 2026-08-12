@@ -3658,6 +3658,123 @@ body,
   word-break: break-all;
 }
 
+/* Settings: sub-section title inside a card */
+.settings-sub-title {
+  margin: 12px 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* ── Music float ball + controller ── */
+.music-ball {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 900;
+  width: 46px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--music-ball-radius, 12px);
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  box-shadow: var(--shadow-card-glow);
+  color: var(--accent);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    box-shadow var(--transition-fast),
+    border-color var(--transition-fast),
+    opacity var(--transition-fast);
+}
+.music-ball:hover {
+  box-shadow:
+    0 0 20px var(--hover-glow),
+    var(--shadow-card-glow);
+  border-color: var(--border-hover);
+}
+.music-ball--paused {
+  opacity: 0.65;
+}
+
+.music-ball-controller {
+  position: fixed;
+  right: 24px;
+  bottom: 84px;
+  z-index: 900;
+  width: 300px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  box-shadow: var(--shadow-dialog);
+}
+.music-ball-track {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.music-ball-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.music-ball-time {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: 'Cascadia Code', Consolas, monospace;
+  min-width: 40px;
+  text-align: center;
+}
+.music-ball-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.music-ball-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
+}
+.music-ball-btn:hover {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+.music-ball-btn--main {
+  width: 40px;
+  height: 40px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  border: 1px solid var(--accent-glow);
+}
+.music-ball-rate {
+  width: 68px;
+  margin-left: auto;
+}
+.music-ball-vol-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  min-width: 30px;
+}
+
 /* ── Wide-window (maximized / large monitor) adaptation ──
    Dynamic proportional scaling is handled by src/renderer/uiScale.ts: the whole
    document is zoomed by windowWidth / DESIGN_WIDTH, so a maximized window is a

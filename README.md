@@ -6,7 +6,7 @@
 
 - 🚀 **启动** — 管理多个 Minecraft 版本，支持自定义游戏目录
 - 📥 **下载** — 从 Mojang 官方源下载游戏版本，支持原版 / Fabric / Forge / NeoForge / Quilt 加载器
-- 🌐 **联机** — 基于 EasyTier 的 P2P 虚拟局域网，配合 Minecraft 局域网协议
+- 🌐 **联机** — 基于 EasyTier 的 P2P 虚拟局域网（组网层），配合 Minecraft 局域网协议
 - ⚙️ **设置** — 深浅色主题、自定义背景图、自定义字体（思源宋体 / 黑体 / 枫叶等宽）、多语言
 - 👤 **账户** — 微软登录 / Yggdrasil 外置登录（Little Skin）
 - 🔄 **自动更新** — 基于 electron-updater + GitHub Releases
@@ -79,8 +79,8 @@ CI（GitHub Actions）会在每次 push / PR 时自动运行 ESLint、Prettier �
 
 ### 联机方案
 
-- [EasyTier](https://easytier.cn/) — P2P 虚拟局域网
-- [Terracotta（陶瓦联机）](https://github.com/burningtnt/Terracotta) — HMCL 联机协议参考
+- [EasyTier](https://easytier.cn/) — **P2P 组网层**：随启动器分发 easytier-core，在玩家之间建立虚拟局域网
+- [Terracotta](https://github.com/burningtnt/Terracotta) — HMCL 的联机协议（Scaffolding）：仅参考其房间 / 局域网发现逻辑，未捆绑其代码
 
 ### 资料与 API
 
@@ -107,7 +107,11 @@ CI（GitHub Actions）会在每次 push / PR 时自动运行 ESLint、Prettier �
 
 ## ⚠️ 声明
 
-- 陶瓦联机（Terracotta / EasyTier）为第三方开源软件
+联机功能涉及两个**不同层面**的第三方开源软件：
+
+- **EasyTier** — 运行时使用的 **P2P 组网层**，作为独立二进制随启动器分发
+- **Terracotta** — 仅作 **联机协议 / 设计参考**（HMCL 的 Scaffolding 协议），RLV 未捆绑、未复制其代码
+
 - 请遵守您所在国家与地区的法律法规
 
 ## 🚀 发布

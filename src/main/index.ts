@@ -53,8 +53,14 @@ let mainWindow: BrowserWindow | null = null;
 app.disableHardwareAcceleration();
 
 // Custom schemes for serving downloaded fonts / background music to the renderer.
+// `corsEnabled` matters for rlv-font: the renderer page (file:// / localhost) is
+// a different origin than rlv-font://, and @font-face loads are CORS-gated —
+// without it downloaded fonts would never actually render.
 protocol.registerSchemesAsPrivileged([
-  { scheme: 'rlv-font', privileges: { secure: true, standard: true, supportFetchAPI: true, stream: true } },
+  {
+    scheme: 'rlv-font',
+    privileges: { secure: true, standard: true, supportFetchAPI: true, stream: true, corsEnabled: true },
+  },
   {
     scheme: 'rlv-audio',
     privileges: { secure: true, standard: true, supportFetchAPI: true, stream: true, bypassCSP: true },
@@ -250,10 +256,12 @@ function registerIpcHandlers(): void {
       }
       const gameDir = getDefaultGameDir();
       const resolved = path.resolve(targetPath);
-      const inside =
-        resolved.toLowerCase() === gameDir.toLowerCase() ||
-        resolved.toLowerCase().startsWith(gameDir.toLowerCase() + path.sep);
-      if (!inside) return { success: false, error: '路径不在游戏目录内' };
+      // Canonical containment check: path.relative normalizes case and "..", so
+      // e.g. "C:\Games\..\Windows\System32" can't slip past a prefix comparison.
+      const rel = path.relative(gameDir, resolved);
+      if (rel.startsWith('..') || path.isAbsolute(rel)) {
+        return { success: false, error: '路径不在游戏目录内' };
+      }
 
       const openError = await shell.openPath(resolved);
       return openError ? { success: false, error: openError } : { success: true };

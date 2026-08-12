@@ -5,11 +5,11 @@
   "description": "A modern Minecraft launcher built with Electron + React + TypeScript",
   "author": "Ryan <3773639748@qq.com> (https://github.com/RLVDev-Ryan)",
   "license": "MIT",
-  "main": "dist/main/src/main/index.js",
+  "main": "dist/main/main/index.js",
   "scripts": {
     "dev": "concurrently \"npm run dev:renderer\" \"npm run dev:main\"",
     "dev:renderer": "vite",
-    "dev:main": "wait-on http://localhost:5173 && tsc -p tsconfig.node.json && electron dist/main/src/main/index.js",
+    "dev:main": "wait-on http://localhost:5173 && tsc -p tsconfig.node.json && electron dist/main/main/index.js",
     "build:renderer": "tsc -p tsconfig.json && vite build",
     "build:main": "tsc -p tsconfig.node.json",
     "build": "npm run build:renderer && npm run build:main",

@@ -51,6 +51,13 @@ export const launchStore = {
     notify();
   },
 
+  /** Explicitly end the launch in an error state (or plain stop when no message). */
+  fail(message?: string) {
+    _launching = false;
+    _progress = message ? { stage: 'error', percent: 0, error: message } : null;
+    notify();
+  },
+
   subscribe(listener: () => void) {
     _listeners.push(listener);
     return () => {

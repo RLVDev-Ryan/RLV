@@ -348,7 +348,11 @@ function GameDownloader({ onBack }: { onBack: () => void }) {
                     onClick={() => handleDownloadVersion(selectedVersion.id, lk)}
                     disabled={downloading !== null}
                   >
-                    {isDone ? t('download.installed') : t('download.download')}
+                    {isDone
+                      ? t('download.installed')
+                      : lk === 'vanilla'
+                        ? t('download.download')
+                        : t('download.install_loader')}
                   </button>
                 )}
               </div>

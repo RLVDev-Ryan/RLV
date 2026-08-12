@@ -33,6 +33,10 @@ export interface RlvConfigs {
     fontContent: string | null;
     fontButtons: string | null;
     fontLogs: string | null;
+    /** Music float-ball corner radius (its own, unless it follows the global one). */
+    musicBallRadius: number;
+    /** Whether the float ball follows the global button radius (default: no). */
+    musicBallRadiusFollow: boolean;
   };
   music: { enabled: boolean; volume: number; playlistPath: string };
   picture: { path: string; blur: number; scaleMode: 'cover' | 'contain' | 'fill' };
@@ -63,6 +67,8 @@ export const DEFAULT_CONFIGS: RlvConfigs = {
     fontContent: null,
     fontButtons: null,
     fontLogs: null,
+    musicBallRadius: 12,
+    musicBallRadiusFollow: false,
   },
   music: { enabled: false, volume: 70, playlistPath: '' },
   picture: { path: '', blur: 0, scaleMode: 'cover' },

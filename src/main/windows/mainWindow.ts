@@ -17,7 +17,7 @@ export function createMainWindow(): BrowserWindow {
     titleBarStyle: 'hidden',
     backgroundColor: '#1a1a2e',
     webPreferences: {
-      // Dev: dist/main/src/main/windows/ → ../../preload/ → dist/main/src/preload/
+      // Dev: dist/main/main/windows/ → ../../preload/ → dist/main/preload/
       // Prod (asar): same relative structure preserved by electron-builder
       preload: path.join(__dirname, '../../preload/index.js'),
       contextIsolation: true,

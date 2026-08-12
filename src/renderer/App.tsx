@@ -13,6 +13,7 @@ import { configStore } from './stores/configStore';
 import { hydrateFromConfig } from './stores/themeStore';
 import { musicPlayer } from './stores/musicPlayer';
 import { applyScale } from './uiScale';
+import MusicFloatBall from './components/MusicFloatBall';
 
 const pageMap: Record<NavKey, React.FC> = {
   launch: LaunchPage,
@@ -81,6 +82,7 @@ export default function App() {
           <PageComponent />
         </main>
       </div>
+      <MusicFloatBall />
     </div>
   );
 }

@@ -1,7 +1,6 @@
-import { app, protocol, net } from 'electron';
+import { app, protocol } from 'electron';
 import path from 'path';
 import fs from 'fs';
-import { pathToFileURL } from 'url';
 import { FONT_MANIFEST, fontDownloadUrl, fontSlug } from '../../shared/fonts';
 import { downloadFile } from '../downloader/downloadFile';
 
@@ -58,7 +57,7 @@ export async function downloadFont(family: string, onProgress: (percent: number)
 
 /** Serve cached fonts to the renderer via the `rlv-font:` protocol. */
 export function registerFontProtocol(): void {
-  protocol.handle('rlv-font', (request) => {
+  protocol.handle('rlv-font', async (request) => {
     try {
       const url = new URL(request.url);
       // rlv-font://fonts/<slug>/<file>
@@ -68,7 +67,17 @@ export function registerFontProtocol(): void {
       if (!filePath.startsWith(cacheDir())) {
         return new Response('forbidden', { status: 403 });
       }
-      return net.fetch(pathToFileURL(filePath).toString());
+      const buf = await fs.promises.readFile(filePath);
+      const ext = path.extname(filePath).toLowerCase();
+      // @font-face loads are cross-origin (page != rlv-font://) and CORS-gated,
+      // so every response must carry Access-Control-Allow-Origin.
+      const mime = ext === '.otf' ? 'font/otf' : ext === '.ttf' ? 'font/ttf' : 'application/octet-stream';
+      return new Response(new Uint8Array(buf), {
+        headers: {
+          'Content-Type': mime,
+          'Access-Control-Allow-Origin': '*',
+        },
+      });
     } catch {
       return new Response('not found', { status: 404 });
     }

@@ -9,6 +9,8 @@ let playing = false;
 let lastRoot = '';
 let resolvedRoot = '';
 let listeners: Array<() => void> = [];
+/** True while a music session is active (survives pause) — drives the float ball. */
+let _active = false;
 
 function notify() {
   listeners.forEach((l) => l());
@@ -22,6 +24,7 @@ function loadAndPlay() {
   if (!playing || !audio || tracks.length === 0) return;
   const track = currentTrack();
   if (!track) return;
+  _active = true;
   if (audio.src !== track.url) {
     audio.src = track.url;
     audio.play().catch(() => {});
@@ -34,6 +37,17 @@ function loadAndPlay() {
 function next() {
   if (tracks.length === 0) return;
   index = (index + 1) % tracks.length;
+  loadAndPlay();
+}
+
+function prev() {
+  if (tracks.length === 0) return;
+  // Restart the current track if it's more than 3s in, otherwise go back one.
+  if (audio && audio.currentTime > 3) {
+    audio.currentTime = 0;
+    return;
+  }
+  index = (index - 1 + tracks.length) % tracks.length;
   loadAndPlay();
 }
 
@@ -104,6 +118,7 @@ export const musicPlayer = {
 
   stop() {
     playing = false;
+    _active = false;
     if (audio) {
       audio.pause();
       audio.src = '';
@@ -113,5 +128,46 @@ export const musicPlayer = {
 
   next() {
     next();
+  },
+  prev() {
+    prev();
+  },
+
+  /** Play/pause toggle (resumes the current track). */
+  toggle() {
+    if (playing) {
+      playing = false;
+      audio?.pause();
+      notify();
+    } else {
+      playing = true;
+      ensureAudio();
+      loadAndPlay();
+    }
+  },
+
+  /** Seek to a time in seconds (clamped). */
+  seek(t: number) {
+    if (audio && Number.isFinite(t)) {
+      const d = audio.duration || t;
+      audio.currentTime = Math.max(0, Math.min(t, d));
+    }
+  },
+
+  setPlaybackRate(r: number) {
+    if (audio && Number.isFinite(r) && r > 0) audio.playbackRate = r;
+  },
+
+  get active() {
+    return _active;
+  },
+  get currentTime() {
+    return audio?.currentTime ?? 0;
+  },
+  get duration() {
+    return audio?.duration || 0;
+  },
+  get playbackRate() {
+    return audio?.playbackRate ?? 1;
   },
 };

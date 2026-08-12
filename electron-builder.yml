@@ -33,7 +33,7 @@ extraResources:
       - '**/*'
 
 extraMetadata:
-  main: dist/main/src/main/index.js
+  main: dist/main/main/index.js
 
 publish:
   provider: github

@@ -109,30 +109,35 @@ function LanguageSection({
   }, []);
 
   /** Ensure a font is available (download on demand), then apply it. */
-  const selectFont = useCallback(async (value: string, apply: () => void) => {
-    if (!window.electronAPI) {
-      apply();
-      return;
-    }
-    const spec = FONT_MANIFEST[value];
-    if (!spec || spec.bundled) {
-      apply(); // bundled default — already present
-      return;
-    }
-    const { cached } = await window.electronAPI.fonts.isCached(value);
-    if (cached) {
-      injectFontFace(value);
-      apply();
-      return;
-    }
-    fontStore._begin(value);
-    const result = await window.electronAPI.fonts.download(value);
-    if (!result.cancelled && result.success) {
-      injectFontFace(value);
-      apply();
-    }
-    fontStore._end();
-  }, []);
+  const selectFont = useCallback(
+    async (value: string, apply: () => void) => {
+      if (!window.electronAPI) {
+        apply();
+        return;
+      }
+      const spec = FONT_MANIFEST[value];
+      if (!spec || spec.bundled) {
+        apply(); // bundled default — already present
+        return;
+      }
+      const { cached } = await window.electronAPI.fonts.isCached(value);
+      if (cached) {
+        injectFontFace(value);
+        apply();
+        return;
+      }
+      fontStore._begin(value);
+      const result = await window.electronAPI.fonts.download(value);
+      if (!result.cancelled && result.success) {
+        injectFontFace(value);
+        apply();
+      } else if (!result.cancelled) {
+        await window.electronAPI.showAlert(result.error || t('settings.font.download_failed'));
+      }
+      fontStore._end();
+    },
+    [t],
+  );
 
   const applyFont = (partial: Partial<ThemeSettings>) => onThemeChange(partial);
 
@@ -210,9 +215,14 @@ function LanguageSection({
           <select
             className="form-input form-select"
             value={theme.fontFamily ?? DEFAULT_FONT}
-            onChange={(e) =>
-              selectFont(e.target.value || DEFAULT_FONT, () => applyFont({ fontFamily: e.target.value || null }))
-            }
+            onChange={(e) => {
+              // Capture the value synchronously — the apply closure runs after
+              // the (async) download, by which time the controlled select has
+              // been reset to the default, so reading e.target.value lazily
+              // would silently re-apply the default font.
+              const v = e.target.value || DEFAULT_FONT;
+              selectFont(v, () => applyFont({ fontFamily: v }));
+            }}
             style={{ marginTop: 12 }}
           >
             {FONT_OPTIONS.map((f) => (
@@ -230,9 +240,10 @@ function LanguageSection({
               <select
                 className="form-input form-select"
                 value={theme.fontContent ?? DEFAULT_FONT}
-                onChange={(e) =>
-                  selectFont(e.target.value || DEFAULT_FONT, () => applyFont({ fontContent: e.target.value || null }))
-                }
+                onChange={(e) => {
+                  const v = e.target.value || DEFAULT_FONT;
+                  selectFont(v, () => applyFont({ fontContent: v }));
+                }}
               >
                 {FONT_OPTIONS.map((f) => (
                   <option key={f} value={f}>
@@ -248,9 +259,10 @@ function LanguageSection({
               <select
                 className="form-input form-select"
                 value={theme.fontButtons ?? DEFAULT_FONT}
-                onChange={(e) =>
-                  selectFont(e.target.value || DEFAULT_FONT, () => applyFont({ fontButtons: e.target.value || null }))
-                }
+                onChange={(e) => {
+                  const v = e.target.value || DEFAULT_FONT;
+                  selectFont(v, () => applyFont({ fontButtons: v }));
+                }}
               >
                 {FONT_OPTIONS.map((f) => (
                   <option key={f} value={f}>
@@ -266,9 +278,10 @@ function LanguageSection({
               <select
                 className="form-input form-select"
                 value={theme.fontLogs ?? DEFAULT_FONT}
-                onChange={(e) =>
-                  selectFont(e.target.value || DEFAULT_FONT, () => applyFont({ fontLogs: e.target.value || null }))
-                }
+                onChange={(e) => {
+                  const v = e.target.value || DEFAULT_FONT;
+                  selectFont(v, () => applyFont({ fontLogs: v }));
+                }}
               >
                 {FONT_OPTIONS.map((f) => (
                   <option key={f} value={f}>
@@ -475,7 +488,7 @@ function PersonalizationSection({
     return unsub;
   }, []);
 
-  const updateUi = (k: keyof typeof uiCfg, v: number) => {
+  const updateUi = (k: keyof typeof uiCfg, v: number | boolean) => {
     configStore.update('ui', { ...configStore.get('ui'), [k]: v });
     applyTheme(themeStore.current);
   };
@@ -778,6 +791,30 @@ function PersonalizationSection({
             {t('settings.music.default_root')}: {musicPlayer.root || t('settings.music.loading')}
           </div>
         )}
+
+        {/* 悬浮球设置 */}
+        <h4 className="settings-sub-title">{t('settings.music.ball_settings')}</h4>
+        <div className="form-group">
+          <label className="form-label">
+            {t('settings.music.ball_radius')}: {uiCfg.musicBallRadius}px
+          </label>
+          <input
+            type="range"
+            className="form-range"
+            min={4}
+            max={24}
+            value={uiCfg.musicBallRadius}
+            onChange={(e) => updateUi('musicBallRadius', Number(e.target.value))}
+          />
+        </div>
+        <label className="export-checkbox">
+          <input
+            type="checkbox"
+            checked={uiCfg.musicBallRadiusFollow}
+            onChange={(e) => updateUi('musicBallRadiusFollow', e.target.checked)}
+          />
+          <span>{t('settings.music.ball_radius_follow')}</span>
+        </label>
       </div>
 
       {/* 下载镜像源 */}

@@ -26,7 +26,7 @@ function ts(): string {
 function formatArgs(args: unknown[]): string {
   return args
     .map((a) => {
-      if (a instanceof Error) return a.stack || a.message;
+      if (a instanceof Error) return (a.stack || a.message).replace(/\n/g, ' \\n ');
       if (a instanceof Buffer) return a.toString('utf8');
       if (typeof a === 'object') {
         try {
