@@ -331,5 +331,6 @@
   "settings.music.now_playing": "正在播放",
   "settings.music.not_playing": "未在播放",
   "settings.music.default_root": "預設音樂資料夾",
-  "settings.music.loading": "讀取中…"
+  "settings.music.loading": "讀取中…",
+  "download.all_versions": "全部版本"
 }

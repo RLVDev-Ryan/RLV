@@ -331,5 +331,6 @@
   "settings.music.now_playing": "Now playing",
   "settings.music.not_playing": "Not playing",
   "settings.music.default_root": "Default music folder",
-  "settings.music.loading": "Loading…"
+  "settings.music.loading": "Loading…",
+  "download.all_versions": "All versions"
 }

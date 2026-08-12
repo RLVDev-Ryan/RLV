@@ -331,5 +331,6 @@
   "settings.music.now_playing": "재생 중",
   "settings.music.not_playing": "재생 중 아님",
   "settings.music.default_root": "기본 음악 폴더",
-  "settings.music.loading": "불러오는 중…"
+  "settings.music.loading": "불러오는 중…",
+  "download.all_versions": "모든 버전"
 }

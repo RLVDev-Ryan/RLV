@@ -101,7 +101,7 @@ function CircularHub({ onSelect }: { onSelect: (v: View) => void }) {
 function CategoryView({ category, onBack }: { category: string; onBack: () => void }) {
   const { t } = useI18n();
   const [type, setType] = useState(category);
-  const [version, setVersion] = useState('1.20.1');
+  const [version, setVersion] = useState('');
   const [loader, setLoader] = useState('');
   const [gameDir, setGameDir] = useState('');
 
@@ -146,18 +146,19 @@ function CategoryView({ category, onBack }: { category: string; onBack: () => vo
                 </option>
               ))}
             </select>
-            <select
-              className="form-input form-select"
+            <input
+              className="form-input"
+              list="rlv-game-versions"
               value={version}
               onChange={(e) => setVersion(e.target.value)}
-              style={{ width: 110 }}
-            >
+              placeholder={t('download.all_versions')}
+              style={{ width: 120 }}
+            />
+            <datalist id="rlv-game-versions">
               {GAME_VERSIONS.map((v) => (
-                <option key={v} value={v}>
-                  {v}
-                </option>
+                <option key={v} value={v} />
               ))}
-            </select>
+            </datalist>
             <select
               className="form-input form-select"
               value={loader}
