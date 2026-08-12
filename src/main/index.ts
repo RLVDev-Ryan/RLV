@@ -25,6 +25,7 @@ import { exportModpack } from './modpack/modpackExporter';
 import { isFontCached, downloadFont, cancelFontDownload, registerFontProtocol } from './fonts/fontManager';
 import { applyPortablePaths, ensureDataDirs } from './paths';
 import { getAllConfigs, loadConfig, saveConfig, configDir } from './config/configManager';
+import { getPlaylist, playlistRoot, registerAudioProtocol } from './music/musicManager';
 import type { ConfigName } from '../shared/config';
 import type { LoaderKey, LoaderInstallProgress, ModpackExportOptions } from '../shared/constants';
 import { initAutoUpdater, downloadUpdate, quitAndInstall, setUpdaterWindow } from './updater/updater';
@@ -51,9 +52,10 @@ let mainWindow: BrowserWindow | null = null;
 // (Electron GPU process can interfere with Windows screenshot compositor)
 app.disableHardwareAcceleration();
 
-// Custom scheme for serving downloaded fonts to the renderer.
+// Custom schemes for serving downloaded fonts / background music to the renderer.
 protocol.registerSchemesAsPrivileged([
   { scheme: 'rlv-font', privileges: { secure: true, standard: true, supportFetchAPI: true, stream: true } },
+  { scheme: 'rlv-audio', privileges: { secure: true, standard: true, supportFetchAPI: true, stream: true, bypassCSP: true } },
 ]);
 
 // Portable mode: redirect userData into .RLV next to the exe before anything
@@ -344,6 +346,18 @@ function registerIpcHandlers(): void {
     }
   });
 
+  // ── Background music ──
+  ipcMain.handle(IPC_CHANNELS.MUSIC_GET_PLAYLIST, () => ({ tracks: getPlaylist() }));
+  ipcMain.handle(IPC_CHANNELS.MUSIC_OPEN_DIR, async () => {
+    try {
+      fs.mkdirSync(playlistRoot(), { recursive: true });
+      const err = await shell.openPath(playlistRoot());
+      return { success: !err, error: err || undefined };
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  });
+
   // ── On-demand fonts ──
   ipcMain.handle(IPC_CHANNELS.FONT_IS_CACHED, (_event, family: string) => ({
     cached: isFontCached(family),
@@ -522,10 +536,11 @@ function registerIpcHandlers(): void {
 app.whenReady().then(() => {
   registerIpcHandlers();
   ensureDataDirs();
+  registerFontProtocol();
+  registerAudioProtocol();
   mainWindow = createMainWindow();
   setMainWindow(mainWindow);
   setLoggerWindow(mainWindow);
-  registerFontProtocol();
   setUpdaterWindow(mainWindow);
   initAutoUpdater();
 

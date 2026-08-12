@@ -326,5 +326,8 @@
   "settings.music.playlist_placeholder": "음악이 있는 폴더 선택…",
   "settings.config_dir": "설정 디렉토리",
   "settings.open_config_dir": "설정 폴더 열기",
-  "settings.open_data_dir": "데이터 폴더 열기"
+  "settings.open_data_dir": "데이터 폴더 열기",
+  "settings.music.open_dir": "음악 폴더 열기",
+  "settings.music.now_playing": "재생 중",
+  "settings.music.not_playing": "재생 중 아님"
 }

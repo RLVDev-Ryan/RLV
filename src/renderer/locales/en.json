@@ -326,5 +326,8 @@
   "settings.music.playlist_placeholder": "Choose the folder with your music…",
   "settings.config_dir": "Config directory",
   "settings.open_config_dir": "Open config folder",
-  "settings.open_data_dir": "Open data folder"
+  "settings.open_data_dir": "Open data folder",
+  "settings.music.open_dir": "Open music folder",
+  "settings.music.now_playing": "Now playing",
+  "settings.music.not_playing": "Not playing"
 }

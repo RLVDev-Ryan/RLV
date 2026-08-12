@@ -326,5 +326,8 @@
   "settings.music.playlist_placeholder": "选择存放音乐的文件夹…",
   "settings.config_dir": "配置文件目录",
   "settings.open_config_dir": "打开配置目录",
-  "settings.open_data_dir": "打开数据目录"
+  "settings.open_data_dir": "打开数据目录",
+  "settings.music.open_dir": "打开音乐目录",
+  "settings.music.now_playing": "正在播放",
+  "settings.music.not_playing": "未在播放"
 }

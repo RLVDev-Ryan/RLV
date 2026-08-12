@@ -3518,3 +3518,16 @@ body,
   min-width: 36px;
   text-align: right;
 }
+
+/* Music now-playing */
+.music-now-playing {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: var(--bg-hover);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.music-now-playing-idle {
+  color: var(--text-muted);
+}

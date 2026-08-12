@@ -11,6 +11,7 @@ import { useI18n } from './hooks/useI18n';
 import { launchStore } from './stores/launchStore';
 import { configStore } from './stores/configStore';
 import { hydrateFromConfig } from './stores/themeStore';
+import { musicPlayer } from './stores/musicPlayer';
 
 const pageMap: Record<NavKey, React.FC> = {
   launch: LaunchPage,
@@ -24,9 +25,20 @@ export default function App() {
   const [activeNav, setActiveNav] = useState<NavKey>('launch');
   const [update, setUpdate] = useState<UpdateStatus | null>(null);
 
-  // Load the .js config files (portable/installed) and apply the theme.
+  // Load the .js config files (portable/installed), apply the theme, start music.
   useEffect(() => {
-    configStore.loadAll().then(() => hydrateFromConfig());
+    configStore.loadAll().then(() => {
+      hydrateFromConfig();
+      musicPlayer.sync();
+    });
+  }, []);
+
+  // Re-sync the music player when the music config changes.
+  useEffect(() => {
+    const unsub = configStore.subscribe(() => {
+      musicPlayer.sync();
+    });
+    return unsub;
   }, []);
 
   useEffect(() => {

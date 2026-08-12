@@ -326,5 +326,8 @@
   "settings.music.playlist_placeholder": "音楽のあるフォルダを選択…",
   "settings.config_dir": "設定ディレクトリ",
   "settings.open_config_dir": "設定フォルダを開く",
-  "settings.open_data_dir": "データフォルダを開く"
+  "settings.open_data_dir": "データフォルダを開く",
+  "settings.music.open_dir": "音楽フォルダを開く",
+  "settings.music.now_playing": "再生中",
+  "settings.music.not_playing": "再生されていません"
 }

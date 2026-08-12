@@ -5,6 +5,7 @@ import { CREDITS, type CreditDetail } from '../data/credits';
 import { DEFAULT_FONT, FONT_MANIFEST, FONT_OPTIONS } from '../../shared/fonts';
 import { fontStore, injectFontFace } from '../stores/fontStore';
 import { configStore } from '../stores/configStore';
+import { musicPlayer } from '../stores/musicPlayer';
 
 type SettingsTab = 'personalization' | 'language' | 'about';
 
@@ -458,6 +459,12 @@ function PersonalizationSection({
     if (dir) updateMusic('playlistPath', dir);
   };
 
+  const [nowPlaying, setNowPlaying] = useState(musicPlayer.track);
+  useEffect(() => {
+    const unsub = musicPlayer.subscribe(() => setNowPlaying(musicPlayer.track));
+    return unsub;
+  }, []);
+
   return (
     <div className="settings-section">
       <h2 className="settings-section-title">{t('settings.personalization')}</h2>
@@ -715,7 +722,20 @@ function PersonalizationSection({
             <button className="btn btn--small btn--outline" onClick={pickMusicDir}>
               {t('common.browse')}
             </button>
+            <button className="btn btn--small btn--outline" onClick={() => window.electronAPI?.music.openDir()}>
+              {t('settings.music.open_dir')}
+            </button>
           </div>
+        </div>
+        <div className="music-now-playing">
+          {musicPlayer.playing && nowPlaying ? (
+            <span>
+              {t('settings.music.now_playing')}: {nowPlaying}
+              {musicPlayer.trackCount > 0 ? ` (${musicPlayer.currentIndex}/${musicPlayer.trackCount})` : ''}
+            </span>
+          ) : (
+            <span className="music-now-playing-idle">{t('settings.music.not_playing')}</span>
+          )}
         </div>
       </div>
 

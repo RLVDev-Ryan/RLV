@@ -108,6 +108,11 @@ export interface ConfigAPI {
   onChanged: (callback: (e: { name: string; data: unknown }) => void) => () => void;
 }
 
+export interface MusicAPI {
+  getPlaylist: () => Promise<{ tracks: { name: string; url: string }[] }>;
+  openDir: () => Promise<{ success: boolean; error?: string }>;
+}
+
 export interface ElectronAPI {
   getAppVersion: () => Promise<string>;
   getPlatform: () => Promise<NodeJS.Platform>;
@@ -134,6 +139,7 @@ export interface ElectronAPI {
   modpack: ModpackAPI;
   fonts: FontsAPI;
   config: ConfigAPI;
+  music: MusicAPI;
 }
 
 declare global {

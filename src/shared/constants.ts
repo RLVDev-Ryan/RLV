@@ -85,6 +85,10 @@ export const IPC_CHANNELS = {
   CONFIG_OPEN_DIR: 'config:open-dir',
   CONFIG_OPEN_DATA_DIR: 'config:open-data-dir',
 
+  // Background music
+  MUSIC_GET_PLAYLIST: 'music:get-playlist',
+  MUSIC_OPEN_DIR: 'music:open-dir',
+
   // Background image
   BG_IMAGE_OPEN: 'bg:open-file',
   BG_IMAGE_READ: 'bg:read-file',
