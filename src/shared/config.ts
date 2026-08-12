@@ -39,6 +39,7 @@ export interface RlvConfigs {
   launcher: {
     language: string;
     updateCheck: 'startup' | 'manual';
+    mirror: 'mojang' | 'bmclapi';
     launch: {
       memoryMB: number;
       jvmArgs: string[];
@@ -68,6 +69,7 @@ export const DEFAULT_CONFIGS: RlvConfigs = {
   launcher: {
     language: 'zh-CN',
     updateCheck: 'startup',
+    mirror: 'bmclapi',
     launch: { memoryMB: 2048, jvmArgs: [], gameArgs: [], isolation: true, javaPath: null },
   },
 };

@@ -433,16 +433,18 @@ function PersonalizationSection({
     if (e.key === 'Enter') handleHexSubmit();
   };
 
-  // ── .js config-driven UI (ui / picture / music) ──
+  // ── .js config-driven UI (ui / picture / music / launcher) ──
   const [uiCfg, setUiCfg] = useState(() => configStore.get('ui'));
   const [picCfg, setPicCfg] = useState(() => configStore.get('picture'));
   const [musicCfg, setMusicCfg] = useState(() => configStore.get('music'));
+  const [launcherCfg, setLauncherCfg] = useState(() => configStore.get('launcher'));
 
   useEffect(() => {
     const unsub = configStore.subscribe(() => {
       setUiCfg(configStore.get('ui'));
       setPicCfg(configStore.get('picture'));
       setMusicCfg(configStore.get('music'));
+      setLauncherCfg(configStore.get('launcher'));
     });
     return unsub;
   }, []);
@@ -742,6 +744,26 @@ function PersonalizationSection({
             {t('settings.music.default_root')}: {musicPlayer.root || t('settings.music.loading')}
           </div>
         )}
+      </div>
+
+      {/* 下载镜像源 */}
+      <div className="settings-card">
+        <h3 className="settings-card-title">{t('settings.mirror.title')}</h3>
+        <p className="settings-card-desc">{t('settings.mirror.desc')}</p>
+        <select
+          className="form-input form-select"
+          value={launcherCfg.mirror}
+          onChange={(e) =>
+            configStore.update('launcher', {
+              ...configStore.get('launcher'),
+              mirror: e.target.value as 'mojang' | 'bmclapi',
+            })
+          }
+          style={{ marginTop: 8 }}
+        >
+          <option value="bmclapi">{t('settings.mirror.bmclapi')}</option>
+          <option value="mojang">{t('settings.mirror.mojang')}</option>
+        </select>
       </div>
 
       {/* 配置目录 */}

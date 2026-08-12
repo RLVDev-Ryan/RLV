@@ -332,5 +332,9 @@
   "settings.music.not_playing": "再生されていません",
   "settings.music.default_root": "デフォルトの音楽フォルダ",
   "settings.music.loading": "読み込み中…",
-  "download.all_versions": "すべてのバージョン"
+  "download.all_versions": "すべてのバージョン",
+  "settings.mirror.title": "ダウンロードミラー",
+  "settings.mirror.desc": "中国では BMCLAPI ミラーで高速ダウンロード",
+  "settings.mirror.bmclapi": "BMCLAPI（中国高速）",
+  "settings.mirror.mojang": "Mojang 公式"
 }

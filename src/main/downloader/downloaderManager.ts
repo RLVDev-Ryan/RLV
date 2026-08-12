@@ -1,17 +1,16 @@
 import path from 'path';
 import fs from 'fs';
 import { downloadFile } from './downloadFile';
+import { versionManifestUrl, versionJsonUrl, versionClientUrl } from '../mirrors';
 import type { DownloadProgress, VersionManifestEntry } from '../../shared/constants';
-
-const MANIFEST_URL = 'https://piston-meta.mojang.com/mc/game/version_manifest_v2.json';
 
 type ProgressCallback = (progress: DownloadProgress) => void;
 
 /**
- * Fetch the Mojang version manifest.
+ * Fetch the version manifest (via the configured mirror).
  */
 export async function fetchVersionManifest(): Promise<VersionManifestEntry[]> {
-  const response = await fetch(MANIFEST_URL);
+  const response = await fetch(versionManifestUrl());
   if (!response.ok) {
     throw new Error(`Failed to fetch version manifest: HTTP ${response.status}`);
   }
@@ -36,9 +35,9 @@ export async function downloadVersion(versionId: string, gameDir: string, onProg
     const entry = manifest.find((v) => v.id === versionId);
     if (!entry) throw new Error(`Version ${versionId} not found`);
 
-    // Step 2: fetch version JSON
+    // Step 2: fetch version JSON (via mirror)
     onProgress({ versionId, stage: 'manifest', percent: 20 });
-    const versionResp = await fetch(entry.url);
+    const versionResp = await fetch(versionJsonUrl(versionId, entry.url));
     if (!versionResp.ok) {
       throw new Error(`Failed to fetch version JSON: HTTP ${versionResp.status}`);
     }
@@ -56,9 +55,10 @@ export async function downloadVersion(versionId: string, gameDir: string, onProg
     fs.writeFileSync(jsonPath, JSON.stringify(versionData, null, 2));
     onProgress({ versionId, stage: 'manifest', percent: 40 });
 
-    // Step 3: download client JAR
-    const clientUrl = versionJson.downloads?.client?.url;
-    if (!clientUrl) throw new Error('No client download URL');
+    // Step 3: download client JAR (via mirror)
+    const officialClient = versionJson.downloads?.client?.url;
+    if (!officialClient) throw new Error('No client download URL');
+    const clientUrl = versionClientUrl(versionId, officialClient);
     onProgress({ versionId, stage: 'client', percent: 0 });
     await downloadFile(clientUrl, clientPath, (pct) => {
       onProgress({ versionId, stage: 'client', percent: pct });

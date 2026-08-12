@@ -332,5 +332,9 @@
   "settings.music.not_playing": "未在播放",
   "settings.music.default_root": "預設音樂資料夾",
   "settings.music.loading": "讀取中…",
-  "download.all_versions": "全部版本"
+  "download.all_versions": "全部版本",
+  "settings.mirror.title": "下載鏡像源",
+  "settings.mirror.desc": "中國大陸使用者建議使用 BMCLAPI 鏡像加速下載",
+  "settings.mirror.bmclapi": "BMCLAPI（加速）",
+  "settings.mirror.mojang": "Mojang 官方"
 }

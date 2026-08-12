@@ -6,6 +6,7 @@ import { spawn, type ChildProcess } from 'child_process';
 import yauzl from 'yauzl';
 import { getDefaultGameDir } from '../gameDirs/gameDirsStore';
 import { downloadFile } from '../downloader/downloadFile';
+import { libraryUrl, assetUrl } from '../mirrors';
 import type { LaunchProgress } from '../../shared/constants';
 
 type ProgressCallback = (progress: LaunchProgress) => void;
@@ -263,7 +264,7 @@ async function downloadLibraries(
       const dest = path.join(libsDir, artifact.path);
       if (!fs.existsSync(dest)) {
         try {
-          await downloadFile(artifact.url, dest);
+          await downloadFile(libraryUrl(artifact.url), dest);
         } catch (err) {
           console.error(`[Launcher] Failed to download library ${artifact.path}:`, err);
         }
@@ -409,10 +410,7 @@ async function downloadAssets(
         const dest = path.join(objectsDir, hash.slice(0, 2), hash);
         if (!fs.existsSync(dest)) {
           try {
-            await downloadFile(
-              `https://resources.download.minecraft.net/${hash.slice(0, 2)}/${hash}`,
-              dest,
-            );
+            await downloadFile(assetUrl(hash), dest);
           } catch (err) {
             console.error(`[Launcher] Failed to download asset ${hash}:`, err);
           }

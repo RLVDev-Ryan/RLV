@@ -332,5 +332,9 @@
   "settings.music.not_playing": "Not playing",
   "settings.music.default_root": "Default music folder",
   "settings.music.loading": "Loading…",
-  "download.all_versions": "All versions"
+  "download.all_versions": "All versions",
+  "settings.mirror.title": "Download mirror",
+  "settings.mirror.desc": "BMCLAPI mirrors the Mojang CDN for faster downloads in China",
+  "settings.mirror.bmclapi": "BMCLAPI (China fast)",
+  "settings.mirror.mojang": "Mojang official"
 }
