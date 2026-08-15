@@ -125,7 +125,8 @@ export const WINDOW_SIZE = {
 export const NAV_ITEMS = [
   { key: 'launch', label: '启动' },
   { key: 'download', label: '下载' },
-  { key: 'multiplayer', label: '联机' },
+  // Multiplayer (联机) is temporarily hidden from the UI.
+  // { key: 'multiplayer', label: '联机' },
   { key: 'logs', label: '日志' },
   { key: 'settings', label: '设置' },
 ] as const;

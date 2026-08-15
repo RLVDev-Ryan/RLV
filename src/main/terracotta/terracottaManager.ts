@@ -24,6 +24,17 @@ import {
 import { generateRoom, encodeInviteCode, decodeInviteCode, type Room } from './room';
 import { scanLanGames, startFakeServer } from './lan';
 import { startScaffoldingServer, ScaffoldingClient, FINGERPRINT, type ScaffoldingServer } from './scaffolding';
+import { loadConfig } from '../config/configManager';
+import {
+  startDaemon,
+  getState,
+  setWaiting,
+  scanning,
+  guesting,
+  killDaemon,
+  type DaemonHandle,
+  type TerracottaState,
+} from './terracottaDriver';
 
 /**
  * RLV multiplayer orchestration.
@@ -37,14 +48,11 @@ import { startScaffoldingServer, ScaffoldingClient, FINGERPRINT, type Scaffoldin
 
 const HOST_VPN_IP = '10.144.144.1';
 const SCAFFOLDING_PORT = 13448;
-// Terracotta-compatible host hostname — other launchers discover the host by
-// this prefix in the EasyTier peer list.
-const HOST_HOSTNAME_PREFIX = 'scaffolding-mc-server-';
+// Host hostname prefix used to discover the host from the EasyTier peer list.
+const HOST_HOSTNAME_PREFIX = 'rlv-mc-server-';
 const GUEST_HOSTNAME_PREFIX = 'rlv-guest-';
 const HOST_DISCOVER_ATTEMPTS = 5;
 const HOST_DISCOVER_INTERVAL_MS = 3000;
-/** Public EasyTier nodes used as rendezvous peers (same as Terracotta). */
-const PUBLIC_SERVERS = ['tcp://public.easytier.top:11010', 'tcp://public2.easytier.cn:54321'];
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -59,6 +67,16 @@ let guestHostname = '';
 let cachedPlayers: RoomPlayer[] = [];
 let watchdogTimer: NodeJS.Timeout | null = null;
 let guestPlayerName = '';
+
+// ── Terracotta (陶瓦联机) backend state ──
+// Used when launcher.multiplayerBackend === 'terracotta', instead of RLV's own
+// easytier+scaffolding implementation above.
+let activeBackend: 'custom' | 'terracotta' | null = null;
+let tcHandle: DaemonHandle | null = null;
+let tcConnected = false;
+let tcPlayers: RoomPlayer[] = [];
+let tcDifficulty: ConnectionDifficulty = 'UNKNOWN';
+let tcPollTimer: NodeJS.Timeout | null = null;
 
 export function setMainWindow(win: BrowserWindow | null): void {
   mainWindow = win;
@@ -259,9 +277,186 @@ function clearState(): void {
   guestPlayerName = '';
 }
 
+// ── Terracotta (陶瓦联机) backend ──
+
+function getBackend(): 'custom' | 'terracotta' {
+  const cfg = loadConfig('launcher') as { multiplayerBackend?: 'custom' | 'terracotta' };
+  return cfg.multiplayerBackend === 'terracotta' ? 'terracotta' : 'custom';
+}
+
+function mapDifficulty(d?: string): ConnectionDifficulty {
+  switch ((d ?? '').toLowerCase()) {
+    case 'easiest':
+      return 'EASIEST';
+    case 'simple':
+      return 'SIMPLE';
+    case 'medium':
+      return 'MEDIUM';
+    case 'tough':
+      return 'TOUGH';
+    default:
+      return 'UNKNOWN';
+  }
+}
+
+function tcProfilesToPlayers(profiles: TerracottaState['profiles']): RoomPlayer[] {
+  return (profiles ?? []).map((p) => ({
+    machineId: String(p.machine_id ?? ''),
+    name: String(p.name ?? ''),
+    vendor: String(p.vendor ?? ''),
+    kind: p.kind === 'GUEST' ? 'GUEST' : 'HOST',
+  }));
+}
+
+function stopTcPolling(): void {
+  if (tcPollTimer) {
+    clearInterval(tcPollTimer);
+    tcPollTimer = null;
+  }
+}
+
+function startTcPolling(): void {
+  stopTcPolling();
+  tcPollTimer = setInterval(async () => {
+    if (!tcHandle) return;
+    const s = await getState(tcHandle.port);
+    if (!s) {
+      tcConnected = false;
+      return;
+    }
+    tcPlayers = tcProfilesToPlayers(s.profiles);
+    tcConnected = s.state === 'host-ok' || s.state === 'guest-ok';
+    if (s.state === 'guest-ok') tcDifficulty = mapDifficulty(s.difficulty);
+    if (s.state === 'exception') {
+      tcConnected = false;
+      notifyPlayersChanged();
+    }
+  }, 3000);
+}
+
+async function startTerracottaHost(playerName?: string): Promise<TerracottaStartResult> {
+  if (activeBackend) {
+    return { success: false, inviteCode: null, error: '已有房间在进行中' };
+  }
+  let handle = tcHandle;
+  if (!handle) {
+    try {
+      handle = await startDaemon();
+    } catch (err) {
+      return { success: false, inviteCode: null, error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+  tcHandle = handle;
+  try {
+    await scanning(handle.port, playerName);
+  } catch (err) {
+    killDaemon(handle);
+    tcHandle = null;
+    return { success: false, inviteCode: null, error: err instanceof Error ? err.message : String(err) };
+  }
+
+  // Terracotta scans for the open LAN game, then hosts. Poll for the room code.
+  const deadline = Date.now() + 45000;
+  while (Date.now() < deadline) {
+    const s = await getState(handle.port);
+    if (!s) break;
+    if (s.state === 'host-starting' || s.state === 'host-ok') {
+      if (s.room) {
+        activeBackend = 'terracotta';
+        tcConnected = s.state === 'host-ok';
+        tcPlayers = tcProfilesToPlayers(s.profiles);
+        startTcPolling();
+        return { success: true, inviteCode: s.room };
+      }
+    }
+    if (s.state === 'exception') {
+      return { success: false, inviteCode: null, error: s.error || '房间创建失败' };
+    }
+    await sleep(500);
+  }
+  killDaemon(handle);
+  tcHandle = null;
+  return {
+    success: false,
+    inviteCode: null,
+    error: '未检测到局域网游戏，请先在游戏内开放局域网后再创建房间',
+  };
+}
+
+async function startTerracottaGuest(code: string, playerName?: string): Promise<TerracottaJoinResult> {
+  if (activeBackend) {
+    return { success: false, error: '已连接房间' };
+  }
+  let handle = tcHandle;
+  if (!handle) {
+    try {
+      handle = await startDaemon();
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+  tcHandle = handle;
+  try {
+    await guesting(handle.port, code, playerName);
+  } catch (err) {
+    killDaemon(handle);
+    tcHandle = null;
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+
+  // Invalid room codes never leave "waiting" — fail fast instead of a long wait.
+  const failFastDeadline = Date.now() + 6000;
+  while (Date.now() < failFastDeadline) {
+    const s = await getState(handle.port);
+    if (s && s.state !== 'waiting') break;
+    await sleep(300);
+  }
+  const initial = await getState(handle.port);
+  if (initial && initial.state === 'waiting') {
+    killDaemon(handle);
+    tcHandle = null;
+    return { success: false, error: '邀请码无效，请检查后重试' };
+  }
+
+  const deadline = Date.now() + 45000;
+  while (Date.now() < deadline) {
+    const s = await getState(handle.port);
+    if (!s) break;
+    if (s.state === 'guest-ok') {
+      activeBackend = 'terracotta';
+      tcConnected = true;
+      tcDifficulty = mapDifficulty(s.difficulty);
+      tcPlayers = tcProfilesToPlayers(s.profiles);
+      startTcPolling();
+      return { success: true, connectAddr: s.url ?? undefined, difficulty: tcDifficulty };
+    }
+    if (s.state === 'exception') {
+      return { success: false, error: s.error || '加入房间失败' };
+    }
+    await sleep(500);
+  }
+  killDaemon(handle);
+  tcHandle = null;
+  return { success: false, error: '加入房间超时，请确认邀请码正确且主机在线' };
+}
+
+async function stopTerracotta(): Promise<void> {
+  stopTcPolling();
+  if (tcHandle) {
+    await setWaiting(tcHandle.port);
+    killDaemon(tcHandle);
+  }
+  tcHandle = null;
+  tcConnected = false;
+  tcPlayers = [];
+  tcDifficulty = 'UNKNOWN';
+  activeBackend = null;
+}
+
 // ── Public API ──
 
 export function getRoomPlayers(): RoomPlayer[] {
+  if (activeBackend === 'terracotta') return tcPlayers;
   if (mode === 'host' && scaffoldingServer) {
     return scaffoldingServer.getPlayers();
   }
@@ -271,10 +466,14 @@ export function getRoomPlayers(): RoomPlayer[] {
 
 /** Whether a room is currently up (mode set AND the easytier node alive). */
 export function isRoomConnected(): boolean {
+  if (activeBackend === 'terracotta') return tcConnected;
   return mode !== null && easyTier !== null && easyTier.isAlive();
 }
 
 export async function startEasyTierHost(port?: number, playerName?: string): Promise<TerracottaStartResult> {
+  if (getBackend() === 'terracotta') {
+    return startTerracottaHost(playerName);
+  }
   if (easyTier && easyTier.isAlive()) {
     return { success: false, inviteCode: null, error: '房间已存在' };
   }
@@ -318,11 +517,11 @@ export async function startEasyTierHost(port?: number, playerName?: string): Pro
     }
   }
 
-  // 3. easytier host node — join the mesh via public rendezvous nodes; guests
-  //    discover us from the peer list by hostname, so no address is embedded
-  //    in the invite code (same scheme as Terracotta).
+  // 3. easytier host node. Guests connect directly to our listener, so the
+  //    invite code embeds this LAN IP + port (no public node needed).
   const rpc = await requestPort(true);
-  if (rpc === 0) {
+  const listener = await requestPort(false);
+  if (rpc === 0 || listener === 0) {
     scaffolding.stop();
     return { success: false, inviteCode: null, error: '无法分配端口' };
   }
@@ -333,12 +532,11 @@ export async function startEasyTierHost(port?: number, playerName?: string): Pro
       room.networkName,
       '--network-secret',
       room.networkSecret,
-      ...PUBLIC_SERVERS.flatMap((s) => ['-p', s]),
       '--no-tun',
       '--ipv4',
       HOST_VPN_IP,
       '-l',
-      'tcp://0.0.0.0:0',
+      `tcp://0.0.0.0:${listener}`,
       '-l',
       'udp://0.0.0.0:0',
       '--hostname',
@@ -367,11 +565,18 @@ export async function startEasyTierHost(port?: number, playerName?: string): Pro
     return { success: false, inviteCode: null, error: 'EasyTier 启动失败' };
   }
 
+  const ip = await getLocalIP();
+  if (!ip) {
+    killProcessTree(handle.pid);
+    scaffolding.stop();
+    return { success: false, inviteCode: null, error: '无法确定本机局域网地址' };
+  }
+
   easyTier = handle;
   scaffoldingServer = scaffolding;
   mode = 'host';
 
-  const inviteCode = encodeInviteCode(room);
+  const inviteCode = encodeInviteCode(room, ip, listener);
 
   // Watchdog: surface a dead easytier to the UI.
   startWatchdog('host');
@@ -380,18 +585,23 @@ export async function startEasyTierHost(port?: number, playerName?: string): Pro
 }
 
 export async function startEasyTierGuest(code: string, playerName?: string): Promise<TerracottaJoinResult> {
+  if (getBackend() === 'terracotta') {
+    return startTerracottaGuest(code, playerName);
+  }
   if (easyTier && easyTier.isAlive()) {
     return { success: false, error: '已连接房间' };
   }
 
-  const room = decodeInviteCode(code);
-  if (!room) {
+  const decoded = decodeInviteCode(code);
+  if (!decoded) {
     return { success: false, error: '邀请码无效，请检查后重试' };
   }
+  const { room, hostIP, listenerPort } = decoded;
   guestPlayerName = playerName || 'RLV 玩家';
 
-  // 1. Guest easytier node — join the mesh via public rendezvous nodes, then
-  //    discover the host from the peer list (invite carries no address).
+  // 1. Guest easytier node — connect DIRECTLY to the host's LAN IP + listener
+  //    port carried in the invite code (no public node needed), then discover
+  //    the host from the peer list.
   const rpc = await requestPort(true);
   if (rpc === 0) return { success: false, error: '无法分配端口' };
   guestHostname = `${GUEST_HOSTNAME_PREFIX}${crypto.randomBytes(3).toString('hex')}`;
@@ -401,13 +611,14 @@ export async function startEasyTierGuest(code: string, playerName?: string): Pro
       room.networkName,
       '--network-secret',
       room.networkSecret,
-      ...PUBLIC_SERVERS.flatMap((s) => ['-p', s]),
       '--no-tun',
       '-d',
       '-l',
       'tcp://0.0.0.0:0',
       '-l',
       'udp://0.0.0.0:0',
+      '-p',
+      `tcp://${hostIP}:${listenerPort}`,
       '--hostname',
       guestHostname,
       '--compression',
@@ -558,6 +769,10 @@ function startWatchdog(kind: 'host' | 'guest'): void {
 }
 
 export async function stopEasyTier(): Promise<void> {
+  if (activeBackend === 'terracotta') {
+    await stopTerracotta();
+    return;
+  }
   stopWatchdog();
   if (stopFakeServerFn) {
     stopFakeServerFn();

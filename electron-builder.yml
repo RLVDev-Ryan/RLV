@@ -31,6 +31,10 @@ extraResources:
     to: bin/easytier
     filter:
       - '**/*'
+  - from: resources/bin/terracotta
+    to: bin/terracotta
+    filter:
+      - '**/*'
 
 extraMetadata:
   main: dist/main/main/index.js

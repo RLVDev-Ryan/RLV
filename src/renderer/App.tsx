@@ -3,7 +3,6 @@ import TitleBar from './components/TitleBar';
 import Sidebar from './components/Sidebar';
 import LaunchPage from './pages/LaunchPage';
 import DownloadPage from './pages/DownloadPage';
-import MultiplayerPage from './pages/MultiplayerPage';
 import SettingsPage from './pages/SettingsPage';
 import LogsPage from './pages/LogsPage';
 import type { NavKey, UpdateStatus } from '../shared/constants';
@@ -18,7 +17,6 @@ import MusicFloatBall from './components/MusicFloatBall';
 const pageMap: Record<NavKey, React.FC> = {
   launch: LaunchPage,
   download: DownloadPage,
-  multiplayer: MultiplayerPage,
   logs: LogsPage,
   settings: SettingsPage,
 };

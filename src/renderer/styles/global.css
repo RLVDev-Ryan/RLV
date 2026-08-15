@@ -1228,6 +1228,52 @@ body,
   border-color: var(--border-hover);
 }
 
+.multiplayer-backend-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.multiplayer-backend-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.multiplayer-backend-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+.multiplayer-backend-btn:hover {
+  border-color: var(--border-hover);
+}
+.multiplayer-backend-btn--active {
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-color: var(--accent-glow);
+}
+
+.multiplayer-create-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.multiplayer-declaration {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
 .multiplayer-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;

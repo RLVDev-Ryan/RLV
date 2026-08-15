@@ -134,7 +134,11 @@ export default function MusicFloatBall() {
             <select
               className="form-input form-select music-ball-rate"
               value={rate}
-              onChange={(e) => musicPlayer.setPlaybackRate(Number(e.target.value))}
+              onChange={(e) => {
+                const r = Number(e.target.value);
+                setRate(r);
+                musicPlayer.setPlaybackRate(r);
+              }}
               title={t('music.playback_rate')}
             >
               {RATES.map((r) => (

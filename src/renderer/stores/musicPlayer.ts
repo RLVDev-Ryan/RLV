@@ -155,7 +155,10 @@ export const musicPlayer = {
   },
 
   setPlaybackRate(r: number) {
-    if (audio && Number.isFinite(r) && r > 0) audio.playbackRate = r;
+    if (audio && Number.isFinite(r) && r > 0) {
+      audio.playbackRate = r;
+      notify(); // keep the float ball's rate dropdown in sync
+    }
   },
 
   get active() {

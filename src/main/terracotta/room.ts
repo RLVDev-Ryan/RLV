@@ -1,27 +1,27 @@
 import crypto from 'crypto';
 
 /**
- * Room identity + invite code — Terracotta / HMCL compatible.
+ * Room identity + invite code.
  *
- * Mirrors Terracotta's scheme exactly so invite codes are interchangeable with
- * other launchers' 陶瓦联机:
+ * RLV's own scheme: a 16-character code drawn from a 34-character alphabet
+ * (no I/O, which map to 1/0 on lookup) encodes BOTH the EasyTier network name
+ * and its secret. The numeric value is forced to be divisible by 7 so a
+ * corrupted code can be rejected at parse time.
  *
- *   invite code    = U/XXXX-XXXX-XXXX-XXXX   (16 chars, 34-char alphabet,
- *                    no I/O — they map to 1/0; value divisible by 7)
- *   network_name   = scaffolding-mc-XXXX-XXXX
- *   network_secret = XXXX-XXXX
+ *   network_name  = rlv-mc-<first 8 chars>
+ *   network_secret = <last 8 chars>
+ *   invite code    = RLV-XXXX-XXXX-XXXX-XXXX-<encoded IP><encoded port>
  *
- * The invite code carries NO host address — guests join the EasyTier network by
- * name/secret via public nodes and discover the host from the peer list.
+ * The invite carries the host's LAN IP + listening port so the guest connects
+ * DIRECTLY to the host — no public rendezvous node required.
  */
 
 const CHARS = '0123456789ABCDEFGHJKLMNPQRSTUVWXYZ'; // 34
 const CODE_LEN = 16;
-const CODE_PREFIX = 'U/';
-const ROOM_PREFIX = 'scaffolding-mc-';
+const ROOM_PREFIX = 'rlv-mc-';
 
 export interface Room {
-  /** Human-friendly code, e.g. "U/3EKB-0WTZ-NEGB-2U3U". */
+  /** Human-friendly code, e.g. "K2M4-6N8P-Q2R4-6T8V". */
   code: string;
   networkName: string;
   networkSecret: string;
@@ -42,20 +42,19 @@ function fromValue(value: bigint): Room {
     v /= 34n;
   }
 
-  // Code: U/XXXX-XXXX-XXXX-XXXX
-  let code = CODE_PREFIX;
+  let code = '';
   for (let i = 0; i < CODE_LEN; i++) {
     if (i === 4 || i === 8 || i === 12) code += '-';
     code += digits[i];
   }
 
-  // Network name / secret must include the dashes — they feed EasyTier's
-  // --network-name / --network-secret, which must match Terracotta exactly.
-  const group = (from: number, to: number) => digits.slice(from, to).join('');
-  const networkName = `${ROOM_PREFIX}${group(0, 4)}-${group(4, 8)}`;
-  const networkSecret = `${group(8, 12)}-${group(12, 16)}`;
-
-  return { code, networkName, networkSecret };
+  const first8 = digits.slice(0, 8).join('');
+  const last8 = digits.slice(8, 16).join('');
+  return {
+    code,
+    networkName: ROOM_PREFIX + first8,
+    networkSecret: last8,
+  };
 }
 
 export function generateRoom(): Room {
@@ -65,16 +64,16 @@ export function generateRoom(): Room {
   for (let i = 0; i < 16; i++) {
     value += BigInt(bytes[i] % 34) * 34n ** BigInt(i);
   }
-  // Force divisibility by 7 as a checksum, like Terracotta.
+  // Force divisibility by 7 as a checksum.
   value -= value % 7n;
   if (value < 0n) value += 7n;
   value %= max;
   return fromValue(value);
 }
 
-/** Parse a Terracotta room code ("U/XXXX-XXXX-XXXX-XXXX"). Returns null if invalid. */
+/** Parse a room code (with or without the RLV- prefix). Returns null if invalid. */
 export function parseRoom(code: string): Room | null {
-  const cleaned = code.trim().toUpperCase().replace(/^U\//, '');
+  const cleaned = code.trim().toUpperCase().replace(/^RLV-/, '');
   const parts = cleaned.split('-');
   if (parts.length !== 4) return null;
   const chars = parts.join('');
@@ -91,12 +90,80 @@ export function parseRoom(code: string): Room | null {
   return fromValue(value);
 }
 
-/** The invite code is the room code itself — no embedded host address. */
-export function encodeInviteCode(room: Room): string {
-  return room.code;
+// ── IP / port encoding (A-J = digit 0-9) ──
+
+const DIGIT_MAP = 'ABCDEFGHIJ';
+
+export function encodeIP(ip: string): string {
+  return ip
+    .split('.')
+    .map((o) => o.padStart(3, '0'))
+    .join('')
+    .split('')
+    .map((d) => DIGIT_MAP[parseInt(d)])
+    .join('');
 }
 
-/** Parse an invite code into a room. Returns null if invalid. */
-export function decodeInviteCode(invite: string): Room | null {
-  return parseRoom(invite);
+export function decodeIP(encoded: string): string | null {
+  if (encoded.length !== 12) return null;
+  const digits = encoded
+    .split('')
+    .map((c) => {
+      const idx = DIGIT_MAP.indexOf(c);
+      return idx >= 0 ? String(idx) : 'x';
+    })
+    .join('');
+  if (digits.includes('x')) return null;
+  const octets: string[] = [];
+  for (let i = 0; i < 4; i++) octets.push(String(parseInt(digits.slice(i * 3, i * 3 + 3), 10)));
+  return octets.join('.');
+}
+
+export function encodePort(port: number): string {
+  return String(port)
+    .padStart(5, '0')
+    .split('')
+    .map((d) => DIGIT_MAP[parseInt(d)])
+    .join('');
+}
+
+export function decodePort(encoded: string): number | null {
+  if (encoded.length !== 5) return null;
+  const digits = encoded
+    .split('')
+    .map((c) => {
+      const idx = DIGIT_MAP.indexOf(c);
+      return idx >= 0 ? String(idx) : 'x';
+    })
+    .join('');
+  if (digits.includes('x')) return null;
+  return parseInt(digits, 10);
+}
+
+export function encodeInviteCode(room: Room, ip: string, listenerPort: number): string {
+  return `RLV-${room.code}-${encodeIP(ip)}${encodePort(listenerPort)}`;
+}
+
+export interface DecodedInvite {
+  room: Room;
+  hostIP: string;
+  listenerPort: number;
+}
+
+export function decodeInviteCode(invite: string): DecodedInvite | null {
+  const parts = invite.trim().toUpperCase().split('-');
+  // RLV + 4 code groups + 1 address segment
+  if (parts.length !== 6) return null;
+  if (parts[0] !== 'RLV') return null;
+  const addr = parts[5];
+  if (addr.length !== 17) return null;
+
+  const room = parseRoom(parts.slice(1, 5).join('-'));
+  if (!room) return null;
+
+  const ip = decodeIP(addr.slice(0, 12));
+  const port = decodePort(addr.slice(12));
+  if (!ip || port === null) return null;
+
+  return { room, hostIP: ip, listenerPort: port };
 }

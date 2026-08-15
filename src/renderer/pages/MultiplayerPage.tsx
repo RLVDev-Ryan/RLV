@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useI18n, type I18nKey } from '../hooks/useI18n';
 import { multiplayerStore } from '../stores/multiplayerStore';
+import { configStore } from '../stores/configStore';
 import type { RoomPlayer, ConnectionDifficulty } from '../../shared/constants';
 
 const STORAGE_KEY = 'rlv_terracotta_disclaimer';
@@ -22,6 +23,12 @@ export default function MultiplayerPage() {
   const [connected, setConnected] = useState(multiplayerStore.connected);
   const [mode, setMode] = useState(multiplayerStore.mode);
   const [inviteCode, setInviteCode] = useState(multiplayerStore.inviteCode);
+  const [backend, setBackend] = useState<'custom' | 'terracotta'>(() =>
+    (configStore.get('launcher') as { multiplayerBackend?: 'custom' | 'terracotta' }).multiplayerBackend ===
+    'terracotta'
+      ? 'terracotta'
+      : 'custom',
+  );
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [joinCode, setJoinCode] = useState('');
@@ -78,14 +85,22 @@ export default function MultiplayerPage() {
     setDisclaimerAccepted(true);
   };
 
+  const switchBackend = (b: 'custom' | 'terracotta') => {
+    setBackend(b);
+    configStore.update('launcher', { ...configStore.get('launcher'), multiplayerBackend: b });
+  };
+
   const handleCreateRoom = useCallback(async () => {
     if (!window.electronAPI) return;
     setLoading(true);
     setMessage(null);
     setCopied(false);
     try {
+      // Terracotta backend auto-scans the open LAN game (port ignored);
+      // the custom backend uses the user-entered port (default 25565).
       const parsed = parseInt(createPort.trim(), 10);
-      const port = Number.isInteger(parsed) && parsed > 0 && parsed < 65536 ? parsed : 25565;
+      const port =
+        backend === 'terracotta' ? 0 : Number.isInteger(parsed) && parsed > 0 && parsed < 65536 ? parsed : 25565;
       const result = await window.electronAPI.terracotta.start(port);
       if (result.success && result.inviteCode) {
         multiplayerStore.connect('host', result.inviteCode);
@@ -102,7 +117,7 @@ export default function MultiplayerPage() {
       setMessage(t('multiplayer.call_fail'));
     }
     setLoading(false);
-  }, [createPort, t]);
+  }, [createPort, backend, t]);
 
   const handleJoinRoom = useCallback(async () => {
     if (!window.electronAPI || !joinCode.trim()) return;
@@ -241,6 +256,24 @@ export default function MultiplayerPage() {
             )}
           </div>
 
+          <div className="multiplayer-backend-switch">
+            <span className="multiplayer-backend-label">{t('multiplayer.backend_label')}</span>
+            <button
+              className={`multiplayer-backend-btn${backend === 'custom' ? ' multiplayer-backend-btn--active' : ''}`}
+              onClick={() => switchBackend('custom')}
+            >
+              {t('multiplayer.backend_custom')}
+            </button>
+            <button
+              className={`multiplayer-backend-btn${backend === 'terracotta' ? ' multiplayer-backend-btn--active' : ''}`}
+              onClick={() => switchBackend('terracotta')}
+            >
+              {t('multiplayer.backend_terracotta')}
+            </button>
+          </div>
+
+          <p className="multiplayer-declaration">{t('multiplayer.declaration')}</p>
+
           {mode === 'idle' && !connected && (
             <div className="multiplayer-actions">
               <div className="multiplayer-action-card">
@@ -271,19 +304,23 @@ export default function MultiplayerPage() {
                   <span className="multiplayer-action-btn-desc">{t('multiplayer.create_desc')}</span>
                 </div>
                 <div className="multiplayer-create-port">
-                  <div className="multiplayer-create-port-row">
-                    <span className="multiplayer-create-port-label">{t('multiplayer.port_label')}</span>
-                    <input
-                      className="form-input"
-                      type="number"
-                      min={1}
-                      max={65535}
-                      placeholder="25565"
-                      value={createPort}
-                      onChange={(e) => setCreatePort(e.target.value)}
-                      style={{ flex: 1 }}
-                    />
-                  </div>
+                  {backend === 'custom' ? (
+                    <div className="multiplayer-create-port-row">
+                      <span className="multiplayer-create-port-label">{t('multiplayer.port_label')}</span>
+                      <input
+                        className="form-input"
+                        type="number"
+                        min={1}
+                        max={65535}
+                        placeholder="25565"
+                        value={createPort}
+                        onChange={(e) => setCreatePort(e.target.value)}
+                        style={{ flex: 1 }}
+                      />
+                    </div>
+                  ) : (
+                    <p className="multiplayer-create-hint">{t('multiplayer.create_hint_terracotta')}</p>
+                  )}
                   <button
                     className="btn btn--primary multiplayer-create-btn"
                     onClick={handleCreateRoom}

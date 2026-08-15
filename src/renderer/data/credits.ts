@@ -223,9 +223,11 @@ export const CREDITS: CreditDetail[] = [
     category: '联机',
     license: 'AGPL-3.0',
     licenseUrl: 'https://github.com/burningtnt/Terracotta?tab=AGPL-3.0-1-ov-file#readme',
-    usage: '参考其联机协议（Scaffolding）与房间 / 局域网发现逻辑设计；RLV 以自研实现与该协议通信，未捆绑或复制其代码。',
-    licenseRequirements: 'Terracotta 遵循 AGPL-3.0（含捆绑 / IPC 例外）；RLV 仅参考协议设计，为独立实现的 MIT 项目。',
-    disclaimer: 'Terracotta 为 HMCL 生态的联机项目，与本启动器无隶属关系。',
+    usage:
+      '作为可选的联机后端（陶瓦联机模式）随启动器捆绑其**未修改的官方二进制**，通过其 HTTP 接口驱动；RLV 默认使用自研联机，可在联机页切换。',
+    licenseRequirements:
+      'Terracotta 遵循 AGPL-3.0（含捆绑 / IPC 例外）：捆绑未修改二进制且不链接、经其 IPC / HTTP 接口交互，RLV 代码不受 AGPL 约束；界面已展示其版权信息。',
+    disclaimer: 'Terracotta 为独立开源项目（burningtnt），与本启动器无隶属关系。',
   },
 
   // ── 资料与 API ──

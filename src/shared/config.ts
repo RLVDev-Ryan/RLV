@@ -44,6 +44,8 @@ export interface RlvConfigs {
     language: string;
     updateCheck: 'startup' | 'manual';
     mirror: 'mojang' | 'bmclapi';
+    /** Multiplayer backend: RLV's own easytier+scaffolding, or bundled Terracotta. */
+    multiplayerBackend: 'custom' | 'terracotta';
     launch: {
       memoryMB: number;
       jvmArgs: string[];
@@ -76,6 +78,7 @@ export const DEFAULT_CONFIGS: RlvConfigs = {
     language: 'zh-CN',
     updateCheck: 'startup',
     mirror: 'bmclapi',
+    multiplayerBackend: 'custom',
     launch: { memoryMB: 2048, jvmArgs: [], gameArgs: [], isolation: true, javaPath: null },
   },
 };

@@ -1,4 +1,4 @@
-import { Rocket, Download, Wifi, TerminalSquare, Settings } from 'lucide-react';
+import { Rocket, Download, TerminalSquare, Settings } from 'lucide-react';
 import { NAV_ITEMS } from '../../shared/constants';
 import type { NavKey } from '../../shared/constants';
 import { useI18n } from '../hooks/useI18n';
@@ -6,7 +6,6 @@ import { useI18n } from '../hooks/useI18n';
 const ICON_MAP: Record<NavKey, React.ReactNode> = {
   launch: <Rocket size={18} />,
   download: <Download size={18} />,
-  multiplayer: <Wifi size={18} />,
   logs: <TerminalSquare size={18} />,
   settings: <Settings size={18} />,
 };
@@ -16,10 +15,9 @@ interface SidebarProps {
   onNavigate: (key: NavKey) => void;
 }
 
-const KEY_TO_I18N: Record<NavKey, 'nav.launch' | 'nav.download' | 'nav.multiplayer' | 'nav.logs' | 'nav.settings'> = {
+const KEY_TO_I18N: Record<NavKey, 'nav.launch' | 'nav.download' | 'nav.logs' | 'nav.settings'> = {
   launch: 'nav.launch',
   download: 'nav.download',
-  multiplayer: 'nav.multiplayer',
   logs: 'nav.logs',
   settings: 'nav.settings',
 };
