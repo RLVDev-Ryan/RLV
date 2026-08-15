@@ -21,6 +21,20 @@
 - **EasyTier** P2P 组网
 - **electron-updater** 自动更新
 
+## 🚀 普通用户快速开始
+
+不想折腾代码？点这里下载安装包，双击即可使用！
+
+[![最新版本](https://img.shields.io/github/v/release/RLVDev-Ryan/RLV?label=最新版本&color=success)](https://github.com/RLVDev-Ryan/RLV/releases/latest)
+
+👉 [下载最新安装包（GitHub Releases）](https://github.com/RLVDev-Ryan/RLV/releases/latest)
+
+1. 打开上面的链接，下载 `ryans-launcher-vibe-setup-*.exe`
+2. 双击运行，按提示安装即可
+3. 启动器内置自动更新，以后有新版本会提示一键升级
+
+> 需要自己编译或参与开发？继续看下面的「开发」章节。
+
 ## 🚀 开发
 
 ```bash
