@@ -1,5 +1,7 @@
 # Ryan's Launcher Vibe (RLV)
 
+[中文](README.md) · [English](README.en.md)
+
 一个现代化的 Minecraft 启动器，基于 Electron + React + TypeScript 构建。
 
 ## ✨ 特性
