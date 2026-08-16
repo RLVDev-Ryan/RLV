@@ -54,11 +54,21 @@ function prev() {
 function ensureAudio() {
   if (audio) return;
   audio = new Audio();
+  let lastErrorSrc: string | null = null;
   audio.addEventListener('ended', () => {
     index = (index + 1) % Math.max(1, tracks.length);
     loadAndPlay();
   });
-  audio.addEventListener('error', () => next());
+  audio.addEventListener('error', () => {
+    // A corrupt/missing track fires error back-to-back — cycle through the
+    // playlist once, then stop instead of hot-looping forever.
+    if (audio && audio.src === lastErrorSrc) {
+      stop();
+      return;
+    }
+    lastErrorSrc = audio ? audio.src : null;
+    next();
+  });
 }
 
 export const musicPlayer = {
@@ -100,9 +110,16 @@ export const musicPlayer = {
     // Re-fetch the playlist only when the folder changed.
     const root = cfg.playlistPath || 'default';
     if (root !== lastRoot) {
-      const res = await window.electronAPI.music.getPlaylist();
-      tracks = res?.tracks ?? [];
-      resolvedRoot = res?.root ?? '';
+      try {
+        const res = await window.electronAPI.music.getPlaylist();
+        tracks = res?.tracks ?? [];
+        resolvedRoot = res?.root ?? '';
+      } catch {
+        // IPC failure — treat as empty playlist (sync() callers don't await,
+        // so an uncaught rejection here would be unhandled).
+        tracks = [];
+        resolvedRoot = '';
+      }
       index = 0;
       lastRoot = root;
     }

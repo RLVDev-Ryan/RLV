@@ -146,10 +146,30 @@ export function startFakeServer(port: number, motd: string = FAKE_LOBBY_MOTD): (
   let closed = false;
   let timer: NodeJS.Timeout | null = null;
 
+  // Async send failures (adapter flap, EACCES…) arrive as an 'error' event —
+  // without a listener they would surface as an uncaught exception and kill
+  // the whole main process.
+  socket.on('error', () => {
+    closed = true;
+    if (timer) clearInterval(timer);
+    timer = null;
+    try {
+      socket.close();
+    } catch {}
+  });
+
   const message = Buffer.from(`[MOTD]${motd}[/MOTD][AD]${port}[/AD]`, 'utf8');
 
   try {
     socket.bind(0, '0.0.0.0', () => {
+      // stop() may have been called before bind completed — then don't start
+      // the interval (it would leak, firing every 1.5s forever).
+      if (closed) {
+        try {
+          socket.close();
+        } catch {}
+        return;
+      }
       try {
         socket.setBroadcast(true);
         socket.setMulticastTTL(4);
@@ -179,6 +199,7 @@ export function startFakeServer(port: number, motd: string = FAKE_LOBBY_MOTD): (
   return () => {
     closed = true;
     if (timer) clearInterval(timer);
+    timer = null;
     try {
       socket.close();
     } catch {}

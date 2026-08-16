@@ -58,8 +58,17 @@ export function registerAudioProtocol(): void {
       if (!p || !AUDIO_EXT.includes(path.extname(p).toLowerCase())) {
         return new Response('forbidden', { status: 403 });
       }
-      if (!fs.existsSync(p)) return new Response('not found', { status: 404 });
-      return net.fetch(pathToFileURL(p).toString());
+      // The path parameter comes from the renderer — only serve files inside
+      // the playlist folder (arbitrary absolute paths would let a compromised
+      // renderer read any audio file on the system).
+      const root = path.resolve(playlistRoot());
+      const resolved = path.resolve(p);
+      const rel = path.relative(root, resolved);
+      if (rel.startsWith('..') || path.isAbsolute(rel)) {
+        return new Response('forbidden', { status: 403 });
+      }
+      if (!fs.existsSync(resolved)) return new Response('not found', { status: 404 });
+      return net.fetch(pathToFileURL(resolved).toString());
     } catch {
       return new Response('bad request', { status: 400 });
     }

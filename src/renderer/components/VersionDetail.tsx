@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Package, Search, Download } from 'lucide-react';
 import { LOADER_META, getBaseVersion } from '../../shared/constants';
 import type { MinecraftVersion, ModrinthHit, ModrinthFile, ModrinthProgress } from '../../shared/constants';
@@ -14,26 +14,37 @@ interface VersionDetailProps {
 
 type DetailTab = 'overview' | 'settings' | 'mods' | 'export';
 
+/** Hoisted to module scope — was rebuilt as a new array on every render. */
+const TAB_DEFS: { key: DetailTab; labelKey: I18nKey }[] = [
+  { key: 'overview', labelKey: 'version.overview' },
+  { key: 'settings', labelKey: 'version.settings' },
+  { key: 'mods', labelKey: 'version.mods' },
+  { key: 'export', labelKey: 'version.export' },
+];
+
 export default function VersionDetail({ version, onBack }: VersionDetailProps) {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<DetailTab>('overview');
   const [fadeIn, setFadeIn] = useState(true);
+  const tabTimer = useRef<number | null>(null);
 
   const lm = version.loader ? LOADER_META[version.loader] : null;
 
-  const TABS: { key: DetailTab; label: string }[] = [
-    { key: 'overview', label: t('version.overview') },
-    { key: 'settings', label: t('version.settings') },
-    { key: 'mods', label: t('version.mods') },
-    { key: 'export', label: t('version.export') },
-  ];
-
   const switchTab = useCallback((tab: DetailTab) => {
     setFadeIn(false);
-    setTimeout(() => {
+    if (tabTimer.current) window.clearTimeout(tabTimer.current);
+    tabTimer.current = window.setTimeout(() => {
+      tabTimer.current = null;
       setActiveTab(tab);
       setFadeIn(true);
     }, 100);
+  }, []);
+
+  // Clear the pending tab-switch timer on unmount (fast back-navigation).
+  useEffect(() => {
+    return () => {
+      if (tabTimer.current) window.clearTimeout(tabTimer.current);
+    };
   }, []);
 
   return (
@@ -71,13 +82,13 @@ export default function VersionDetail({ version, onBack }: VersionDetailProps) {
 
       {/* Tab bar */}
       <div className="version-detail-tabs">
-        {TABS.map((tab) => (
+        {TAB_DEFS.map((tab) => (
           <button
             key={tab.key}
             className={`version-detail-tab${activeTab === tab.key ? ' version-detail-tab--active' : ''}`}
             onClick={() => switchTab(tab.key)}
           >
-            {tab.label}
+            {t(tab.labelKey)}
           </button>
         ))}
       </div>
@@ -103,12 +114,21 @@ function TabOverview({ version, onBack }: { version: MinecraftVersion; onBack: (
   useEffect(() => {
     if (window.electronAPI) {
       // Resolve this version's ACTUAL game dir (it may live in a non-default dir).
-      window.electronAPI.gameDirs.scanVersions().then((list) => {
-        const hit = list.find((v) => v.id === version.id);
-        setVersionGameDir(hit?.gameDir ?? '');
-      });
-      window.electronAPI.gameDirs.getVersionPath(version.id).then(setVersionPath);
-      window.electronAPI.gameDirs.getAll().then(setGameDirs);
+      window.electronAPI.gameDirs
+        .scanVersions()
+        .then((list) => {
+          const hit = list.find((v) => v.id === version.id);
+          setVersionGameDir(hit?.gameDir ?? '');
+        })
+        .catch(() => {});
+      window.electronAPI.gameDirs
+        .getVersionPath(version.id)
+        .then(setVersionPath)
+        .catch(() => {});
+      window.electronAPI.gameDirs
+        .getAll()
+        .then(setGameDirs)
+        .catch(() => {});
     }
   }, [version.id]);
 
@@ -415,8 +435,21 @@ function IconSettings({ versionId, loader }: { versionId: string; loader?: strin
     input.onchange = () => {
       const file = input.files?.[0];
       if (!file) return;
+      // Validate up front — a huge file must not be read into memory just to
+      // become a 256×256 icon (and blow the localStorage quota on save).
+      if (!file.type.startsWith('image/')) {
+        window.electronAPI?.showAlert(t('version.icon_invalid_type')).catch(() => {});
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        window.electronAPI?.showAlert(t('version.icon_too_large')).catch(() => {});
+        return;
+      }
       const reader = new FileReader();
       reader.onload = () => setCrop({ slot: key, src: String(reader.result) });
+      reader.onerror = () => {
+        window.electronAPI?.showAlert(t('version.icon_load_failed')).catch(() => {});
+      };
       reader.readAsDataURL(file);
     };
     input.click();
@@ -490,6 +523,9 @@ function TabMods({ version }: { version: MinecraftVersion }) {
   const [progress, setProgress] = useState<Record<string, ModrinthProgress>>({});
   const [gameDirs, setGameDirs] = useState<string[]>([]);
   const [completed, setCompleted] = useState<Record<string, boolean>>({});
+  // Monotonic search id — a slow stale response must not overwrite a newer one.
+  const searchSeq = useRef(0);
+  const doneTimers = useRef<number[]>([]);
 
   const gameVersion = getBaseVersion(version.id);
   const loader = version.loader ?? null;
@@ -498,41 +534,56 @@ function TabMods({ version }: { version: MinecraftVersion }) {
   useEffect(() => {
     if (!window.electronAPI) return;
     (async () => {
-      const list = await window.electronAPI.gameDirs.scanVersions();
-      const hit = list.find((v) => v.id === version.id);
-      setGameDir(hit?.gameDir ?? (await window.electronAPI.gameDirs.getDefault()));
+      try {
+        const list = await window.electronAPI.gameDirs.scanVersions();
+        const hit = list.find((v) => v.id === version.id);
+        setGameDir(hit?.gameDir ?? (await window.electronAPI.gameDirs.getDefault()));
+      } catch {
+        // Keep gameDir empty — the download button will simply stay disabled.
+      }
     })();
   }, [version.id]);
 
   // "Open mods dir" needs the game dir list too.
   useEffect(() => {
     if (!window.electronAPI) return;
-    window.electronAPI.gameDirs.getAll().then(setGameDirs);
+    window.electronAPI.gameDirs
+      .getAll()
+      .then(setGameDirs)
+      .catch(() => {});
   }, []);
 
   // Subscribe to per-file download progress (keyed by project id).
   useEffect(() => {
     if (!window.electronAPI) return;
-    return window.electronAPI.modrinth.onProgress((p) => {
+    const cleanup = window.electronAPI.modrinth.onProgress((p) => {
       const key = p.projectId ?? p.filename;
       setProgress((prev) => ({ ...prev, [key]: p }));
       if (p.stage === 'done') {
         setCompleted((prev) => ({ ...prev, [key]: true }));
-        setTimeout(() => {
-          setProgress((prev) => {
-            const next = { ...prev };
-            delete next[key];
-            return next;
-          });
-          setCompleted((prev) => ({ ...prev, [key]: false }));
-        }, 4000);
+        doneTimers.current.push(
+          window.setTimeout(() => {
+            setProgress((prev) => {
+              const next = { ...prev };
+              delete next[key];
+              return next;
+            });
+            setCompleted((prev) => ({ ...prev, [key]: false }));
+          }, 4000),
+        );
       }
     });
+    return () => {
+      cleanup();
+      doneTimers.current.forEach((id) => window.clearTimeout(id));
+      doneTimers.current = [];
+    };
   }, []);
 
   const doSearch = useCallback(
     async (q: string) => {
       if (!window.electronAPI) return;
+      const seq = ++searchSeq.current;
       setLoading(true);
       setError(null);
       try {
@@ -542,14 +593,18 @@ function TabMods({ version }: { version: MinecraftVersion }) {
           JSON.stringify(facets),
         )}&limit=24&index=${q ? 'relevance' : 'downloads'}`;
         const res = await fetch(url);
+        if (seq !== searchSeq.current) return; // superseded by a newer search
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         setResults(Array.isArray(data.hits) ? data.hits : []);
       } catch {
+        if (seq !== searchSeq.current) return;
         setError(t('mods.search_failed'));
       }
-      setLoading(false);
-      setSearched(true);
+      if (seq === searchSeq.current) {
+        setLoading(false);
+        setSearched(true);
+      }
     },
     [gameVersion, loader, t],
   );
@@ -767,13 +822,19 @@ function TabExport({ version }: { version: MinecraftVersion }) {
   useEffect(() => {
     if (!window.electronAPI) return;
     setLoadingMods(true);
-    window.electronAPI.modpack.listMods(version.id).then((res) => {
-      if (res && res.success) {
-        setModFiles(res.mods);
-        setCheckedMods(Object.fromEntries(res.mods.map((m) => [m, true])));
-      }
-      setLoadingMods(false);
-    });
+    window.electronAPI.modpack
+      .listMods(version.id)
+      .then((res) => {
+        if (res && res.success) {
+          setModFiles(res.mods);
+          setCheckedMods(Object.fromEntries(res.mods.map((m) => [m, true])));
+        }
+      })
+      .catch(() => {
+        // IPC failure — clear the loading state so the export tab isn't stuck
+        // on "loading" forever.
+      })
+      .finally(() => setLoadingMods(false));
   }, [version.id]);
 
   const exportItems: { key: keyof typeof items; labelKey: I18nKey }[] = [

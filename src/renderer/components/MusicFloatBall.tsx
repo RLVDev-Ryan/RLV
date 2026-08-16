@@ -28,6 +28,15 @@ export default function MusicFloatBall() {
   const [rate, setRate] = useState(musicPlayer.playbackRate);
   const [volume, setVolume] = useState(configStore.get('music').volume);
   const clickTimer = useRef<number | null>(null);
+  const volumeTimer = useRef<number | null>(null);
+
+  // Clear any pending timers on unmount.
+  useEffect(() => {
+    return () => {
+      if (clickTimer.current) window.clearTimeout(clickTimer.current);
+      if (volumeTimer.current) window.clearTimeout(volumeTimer.current);
+    };
+  }, []);
 
   useEffect(() => {
     const unsub = musicPlayer.subscribe(() => {
@@ -75,8 +84,12 @@ export default function MusicFloatBall() {
   };
 
   const changeVolume = (v: number) => {
-    setVolume(v);
-    configStore.update('music', { ...configStore.get('music'), volume: v });
+    setVolume(v); // thumb follows immediately
+    // Debounce the disk write — dragging used to persist on every input event.
+    if (volumeTimer.current) window.clearTimeout(volumeTimer.current);
+    volumeTimer.current = window.setTimeout(() => {
+      configStore.update('music', { ...configStore.get('music'), volume: v });
+    }, 300);
   };
 
   return (
@@ -97,6 +110,7 @@ export default function MusicFloatBall() {
               step={1}
               value={Math.min(time, duration || time)}
               onChange={(e) => musicPlayer.seek(Number(e.target.value))}
+              disabled={duration <= 0}
               style={{ flex: 1 }}
             />
             <span className="music-ball-time">{fmt(duration)}</span>

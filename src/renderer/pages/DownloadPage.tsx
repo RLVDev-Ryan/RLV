@@ -187,7 +187,6 @@ function CategoryView({ category, onBack }: { category: string; onBack: () => vo
           </div>
 
           <ModrinthSearch
-            key={`${type}-${version}-${loader}`}
             category={type}
             gameVersion={version}
             loader={type === 'mod' ? loader : null}
@@ -207,6 +206,7 @@ function GameDownloader({ onBack }: { onBack: () => void }) {
   const [sort, setSort] = useState<'desc' | 'asc'>('desc');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedVersion, setSelectedVersion] = useState<VersionManifestEntry | null>(null);
   const [showMore, setShowMore] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
@@ -217,44 +217,75 @@ function GameDownloader({ onBack }: { onBack: () => void }) {
     error?: string;
   } | null>(null);
   const [loaderProgress, setLoaderProgress] = useState<Record<string, LoaderInstallProgress>>({});
+  /** Installed version ids (disk truth) — drives the "已安装" state so it can't
+   *  be lost by a cancelled re-download, and the button can't re-download. */
+  const [installedIds, setInstalledIds] = useState<string[]>([]);
+
+  const loadInstalled = useCallback(async () => {
+    if (!window.electronAPI) return;
+    try {
+      const list = await window.electronAPI.gameDirs.scanVersions();
+      setInstalledIds(list.map((v) => v.id));
+    } catch {}
+  }, []);
 
   useEffect(() => {
     loadVersions();
-  }, []);
+    loadInstalled();
+  }, [loadInstalled]);
 
   useEffect(() => {
     if (!window.electronAPI) return;
     const cleanup = window.electronAPI.download.onProgress((p) => {
       setProgress(p);
       if (p.stage === 'done' || p.stage === 'error') setDownloading(null);
+      if (p.stage === 'done') loadInstalled();
     });
     return cleanup;
-  }, []);
+  }, [loadInstalled]);
 
   useEffect(() => {
     if (!window.electronAPI) return;
-    return window.electronAPI.loader.onProgress((p) => {
+    const timers: number[] = [];
+    const cleanup = window.electronAPI.loader.onProgress((p) => {
       const key = `${p.loader}:${p.gameVersion}`;
       setLoaderProgress((prev) => ({ ...prev, [key]: p }));
       if (p.stage === 'done') {
-        setTimeout(() => {
-          setLoaderProgress((prev) => {
-            const next = { ...prev };
-            delete next[key];
-            return next;
-          });
-        }, 4000);
+        loadInstalled();
+        // Track the cleanup timer so it can't fire setState after unmount
+        // (and multiple 'done' events can't pile up timers).
+        timers.push(
+          window.setTimeout(() => {
+            setLoaderProgress((prev) => {
+              const next = { ...prev };
+              delete next[key];
+              return next;
+            });
+          }, 4000),
+        );
       }
     });
-  }, []);
+    return () => {
+      cleanup();
+      timers.forEach((id) => window.clearTimeout(id));
+    };
+  }, [loadInstalled]);
 
   const loadVersions = async () => {
     if (!window.electronAPI) return;
     setLoading(true);
+    setLoadError(null);
     try {
       const result = await window.electronAPI.download.listVersions();
-      if (result.success) setVersions(result.versions);
-    } catch {}
+      if (result.success) {
+        setVersions(result.versions);
+      } else {
+        setLoadError(t('download.load_failed'));
+      }
+    } catch (err) {
+      // Don't silently present an empty list as "no versions" — surface it.
+      setLoadError(err instanceof Error ? err.message : String(err));
+    }
     setLoading(false);
   };
 
@@ -320,7 +351,7 @@ function GameDownloader({ onBack }: { onBack: () => void }) {
             const lk = loaderKey as string;
             const dlKey = lk === 'vanilla' ? selectedVersion.id : `${selectedVersion.id}-${lk}`;
             const isDownloading = downloading === dlKey;
-            const isDone = progress?.versionId === dlKey && progress?.stage === 'done';
+            const isInstalled = installedIds.some((id) => id === dlKey || id.startsWith(dlKey + '-'));
             const hasError = progress?.versionId === dlKey && progress?.stage === 'error';
             const pct = progress?.versionId === dlKey ? progress.percent : 0;
             const lp = loaderProgress[`${lk}:${selectedVersion.id}`];
@@ -341,14 +372,23 @@ function GameDownloader({ onBack }: { onBack: () => void }) {
                   <div className="download-progress-tag">
                     <span className="download-progress-bar" style={{ width: `${pct}%` }} />
                     <span className="download-progress-text">{hasError ? t('download.failed') : `${pct}%`}</span>
+                    <button
+                      className="btn btn--small btn--ghost"
+                      onClick={async () => {
+                        await window.electronAPI?.download.cancel();
+                        setDownloading(null);
+                      }}
+                    >
+                      {t('common.cancel')}
+                    </button>
                   </div>
                 ) : (
                   <button
                     className="btn btn--small btn--primary"
                     onClick={() => handleDownloadVersion(selectedVersion.id, lk)}
-                    disabled={downloading !== null}
+                    disabled={downloading !== null || isInstalled}
                   >
-                    {isDone
+                    {isInstalled
                       ? t('download.installed')
                       : lk === 'vanilla'
                         ? t('download.download')
@@ -408,7 +448,10 @@ function GameDownloader({ onBack }: { onBack: () => void }) {
 
       <div className="download-list">
         {loading && <div className="download-empty">{t('download.loading')}</div>}
-        {!loading && filtered.length === 0 && <div className="download-empty">{t('download.no_match')}</div>}
+        {!loading && loadError && <div className="download-empty">{loadError}</div>}
+        {!loading && !loadError && filtered.length === 0 && (
+          <div className="download-empty">{t('download.no_match')}</div>
+        )}
         {filtered.map((v) => (
           <button key={v.id} className="version-card" onClick={() => setSelectedVersion(v)}>
             <div className="version-card-left">

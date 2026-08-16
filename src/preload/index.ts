@@ -78,6 +78,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke(IPC_CHANNELS.DOWNLOAD_LIST_VERSIONS),
     start: (versionId: string): Promise<{ success: boolean; error?: string }> =>
       ipcRenderer.invoke(IPC_CHANNELS.DOWNLOAD_START, versionId),
+    cancel: (): Promise<{ success: boolean }> => ipcRenderer.invoke(IPC_CHANNELS.DOWNLOAD_CANCEL),
     onProgress: (callback: (progress: DownloadProgress) => void) => {
       const handler = (_event: Electron.IpcRendererEvent, progress: DownloadProgress) => callback(progress);
       ipcRenderer.on(IPC_CHANNELS.DOWNLOAD_PROGRESS, handler);
@@ -159,6 +160,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     get: (name: string): Promise<unknown> => ipcRenderer.invoke(IPC_CHANNELS.CONFIG_GET, name),
     set: (name: string, data: unknown): Promise<{ success: boolean; error?: string }> =>
       ipcRenderer.invoke(IPC_CHANNELS.CONFIG_SET, name, data),
+    setMany: (entries: Record<string, unknown>): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke(IPC_CHANNELS.CONFIG_SET_MANY, entries),
     openDir: (): Promise<{ success: boolean; error?: string }> => ipcRenderer.invoke(IPC_CHANNELS.CONFIG_OPEN_DIR),
     openDataDir: (): Promise<{ success: boolean; error?: string }> =>
       ipcRenderer.invoke(IPC_CHANNELS.CONFIG_OPEN_DATA_DIR),
@@ -215,6 +218,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke(IPC_CHANNELS.TERRACOTTA_JOIN, inviteCode),
     stop: (): Promise<{ success: boolean }> => ipcRenderer.invoke(IPC_CHANNELS.TERRACOTTA_STOP),
     players: (): Promise<TerracottaPlayersResult> => ipcRenderer.invoke(IPC_CHANNELS.TERRACOTTA_PLAYERS),
+    onPermissionError: (callback: () => void) => {
+      const handler = () => callback();
+      ipcRenderer.on(IPC_CHANNELS.TERRACOTTA_PERMISSION_ERROR, handler);
+      return () => ipcRenderer.removeListener(IPC_CHANNELS.TERRACOTTA_PERMISSION_ERROR, handler);
+    },
   },
 
   // ── Account management ──

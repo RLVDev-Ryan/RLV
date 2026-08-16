@@ -60,9 +60,11 @@ export default function MultiplayerPage() {
   // (easytier died), reset the local UI state to disconnected.
   useEffect(() => {
     if (!connected || !window.electronAPI) return;
+    let failures = 0;
     const poll = async () => {
       try {
         const res = await window.electronAPI!.terracotta.players();
+        failures = 0;
         if (res && !res.connected) {
           multiplayerStore.disconnect();
           setPlayers([]);
@@ -72,12 +74,29 @@ export default function MultiplayerPage() {
           return;
         }
         if (res?.players) setPlayers(res.players);
-      } catch {}
+      } catch {
+        // Consecutive IPC failures mean the room state is unknowable — stop
+        // pretending it's still connected instead of showing a stale list.
+        if (++failures >= 3) {
+          multiplayerStore.disconnect();
+          setPlayers([]);
+          setMessage(t('multiplayer.room_lost'));
+        }
+      }
     };
     poll();
     const timer = setInterval(poll, 3000);
     return () => clearInterval(timer);
   }, [connected, t]);
+
+  // Surface Windows permission errors (e.g. the easytier network adapter
+  // needs admin rights) reported by the main process.
+  useEffect(() => {
+    if (!window.electronAPI?.terracotta.onPermissionError) return;
+    return window.electronAPI.terracotta.onPermissionError(() => {
+      setMessage(t('multiplayer.permission_error'));
+    });
+  }, [t]);
 
   const handleDisclaimerConfirm = () => {
     if (dontShowAgain) localStorage.setItem(STORAGE_KEY, 'true');
@@ -192,7 +211,7 @@ export default function MultiplayerPage() {
   return (
     <div className="page launch-page">
       {showDialog && (
-        <div className="dialog-overlay" onClick={() => {}}>
+        <div className="dialog-overlay">
           <div className="terracotta-dialog" onClick={(e) => e.stopPropagation()}>
             <div className="terracotta-dialog-body">
               <div className="terracotta-dialog-icon">

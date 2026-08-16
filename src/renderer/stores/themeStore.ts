@@ -70,6 +70,10 @@ export function hydrateFromConfig(): void {
   };
   if (current.mode !== 'dark') lightAccent = current.accentColor;
   applyTheme(current);
+  // Persist the configured language to the i18n system. Without this the
+  // launcher.language config was applied to the theme but NEVER propagated to
+  // the dictionary, so the UI silently reverted to zh-CN after every restart.
+  emitLocaleChange(current.locale);
   // Re-inject @font-face rules for on-demand fonts persisted in the config —
   // otherwise a downloaded font is "selected" after restart but falls back to
   // Segoe UI because its <style> tag is gone. Bundled fonts no-op here.
@@ -82,6 +86,8 @@ export function hydrateFromConfig(): void {
 }
 
 export function setTheme(settings: Partial<ThemeSettings>): ThemeSettings {
+  // Clone — never mutate the caller's object (hidden side effects).
+  settings = { ...settings };
   if (settings.mode === 'dark' && current.mode !== 'dark') {
     lightAccent = current.accentColor;
     settings.accentColor = '#242424';
@@ -97,19 +103,22 @@ export function setTheme(settings: Partial<ThemeSettings>): ThemeSettings {
 
   current = { ...current, ...settings };
 
-  // Persist to .js config files (color.js / ui.js / picture.js / launcher.js).
-  configStore.update('color', { accent: lightAccent });
-  configStore.update('picture', { ...configStore.get('picture'), path: current.bgImagePath ?? '' });
-  configStore.update('ui', {
-    mode: current.mode,
-    buttonMode: current.buttonMode,
-    fontFamily: current.fontFamily,
-    fontMode: current.fontMode,
-    fontContent: current.fontContent,
-    fontButtons: current.fontButtons,
-    fontLogs: current.fontLogs,
+  // Persist to .js config files — one batched IPC round trip instead of four
+  // separate writes per theme change.
+  configStore.updateMany({
+    color: { accent: lightAccent },
+    picture: { ...configStore.get('picture'), path: current.bgImagePath ?? '' },
+    ui: {
+      mode: current.mode,
+      buttonMode: current.buttonMode,
+      fontFamily: current.fontFamily,
+      fontMode: current.fontMode,
+      fontContent: current.fontContent,
+      fontButtons: current.fontButtons,
+      fontLogs: current.fontLogs,
+    },
+    launcher: { ...configStore.get('launcher'), language: current.locale },
   });
-  configStore.update('launcher', { ...configStore.get('launcher'), language: current.locale });
 
   // Sync locale to i18n system
   if (settings.locale && typeof window !== 'undefined') {
@@ -135,18 +144,7 @@ export function applyTheme(settings: ThemeSettings): void {
     root.setAttribute('data-theme', 'light');
   }
 
-  const accent = settings.mode === 'dark' ? '#242424' : settings.accentColor;
-
-  root.style.setProperty('--accent', accent);
-
-  const r = parseInt(accent.slice(1, 3), 16);
-  const g = parseInt(accent.slice(3, 5), 16);
-  const b = parseInt(accent.slice(5, 7), 16);
-
-  const hover = lighten(accent, 20);
-  root.style.setProperty('--accent-hover', hover);
-  root.style.setProperty('--accent-glow', `rgba(${r}, ${g}, ${b}, 0.25)`);
-  root.style.setProperty('--accent-bg', `rgba(${r}, ${g}, ${b}, 0.10)`);
+  applyAccentVars(settings.mode === 'dark' ? '#242424' : settings.accentColor);
 
   // Background — use cached data URL if available
   if (_bgDataUrl) {
@@ -202,7 +200,7 @@ export function applyTheme(settings: ThemeSettings): void {
     root.style.removeProperty('--font-buttons');
     root.style.removeProperty('--font-logs');
   }
-  root.setAttribute('lang', settings.locale.replace('-', '-'));
+  root.setAttribute('lang', settings.locale.replace(/_/g, '-'));
 }
 
 /** Read the background image file via IPC → cache data URL → re-apply. */
@@ -225,6 +223,29 @@ function lighten(hex: string, amount: number): string {
   const g = Math.min(255, parseInt(hex.slice(3, 5), 16) + amount);
   const b = Math.min(255, parseInt(hex.slice(5, 7), 16) + amount);
   return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
+/** Apply the accent-derived CSS variables (--accent / -hover / -glow / -bg). */
+function applyAccentVars(accent: string): void {
+  const root = document.documentElement;
+  // A user-edited color.js could hold any string — clamp to a valid #rrggbb
+  // hex so parse/slice can't produce NaN CSS (rgba(NaN,…) breaks the theme).
+  const safe = /^#[0-9a-fA-F]{6}$/.test(accent) ? accent : defaultTheme.accentColor;
+  root.style.setProperty('--accent', safe);
+  const r = parseInt(safe.slice(1, 3), 16);
+  const g = parseInt(safe.slice(3, 5), 16);
+  const b = parseInt(safe.slice(5, 7), 16);
+  root.style.setProperty('--accent-hover', lighten(safe, 20));
+  root.style.setProperty('--accent-glow', `rgba(${r}, ${g}, ${b}, 0.25)`);
+  root.style.setProperty('--accent-bg', `rgba(${r}, ${g}, ${b}, 0.10)`);
+}
+
+/**
+ * Live accent preview while the user drags the native color picker — updates
+ * only the CSS variables; nothing is persisted (setTheme commits on release).
+ */
+export function previewAccent(color: string): void {
+  if (/^#[0-9a-fA-F]{6}$/.test(color)) applyAccentVars(color);
 }
 
 // Initialize with defaults; hydrateFromConfig() is called by the app boot

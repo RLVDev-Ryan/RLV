@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Package, Search, Download } from 'lucide-react';
 import { useI18n } from '../hooks/useI18n';
 import type { ModrinthHit, ModrinthFile, ModrinthProgress } from '../../shared/constants';
@@ -43,29 +43,40 @@ export default function ModrinthSearch({ category, gameVersion, loader, gameDir 
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<Record<string, ModrinthProgress>>({});
   const [completed, setCompleted] = useState<Record<string, boolean>>({});
+  // Monotonic search id: a slow stale response must not overwrite a newer one.
+  const searchSeq = useRef(0);
+  const doneTimers = useRef<number[]>([]);
 
   useEffect(() => {
     if (!window.electronAPI) return;
-    return window.electronAPI.modrinth.onProgress((p) => {
+    const cleanup = window.electronAPI.modrinth.onProgress((p) => {
       const key = p.projectId ?? p.filename;
       setProgress((prev) => ({ ...prev, [key]: p }));
       if (p.stage === 'done') {
         setCompleted((prev) => ({ ...prev, [key]: true }));
-        setTimeout(() => {
-          setProgress((prev) => {
-            const next = { ...prev };
-            delete next[key];
-            return next;
-          });
-          setCompleted((prev) => ({ ...prev, [key]: false }));
-        }, 4000);
+        doneTimers.current.push(
+          window.setTimeout(() => {
+            setProgress((prev) => {
+              const next = { ...prev };
+              delete next[key];
+              return next;
+            });
+            setCompleted((prev) => ({ ...prev, [key]: false }));
+          }, 4000),
+        );
       }
     });
+    return () => {
+      cleanup();
+      doneTimers.current.forEach((id) => window.clearTimeout(id));
+      doneTimers.current = [];
+    };
   }, []);
 
   const doSearch = useCallback(
     async (q: string) => {
       if (!window.electronAPI) return;
+      const seq = ++searchSeq.current;
       setLoading(true);
       setError(null);
       try {
@@ -78,20 +89,29 @@ export default function ModrinthSearch({ category, gameVersion, loader, gameDir 
           JSON.stringify(facets),
         )}&limit=24&index=${q ? 'relevance' : 'downloads'}`;
         const res = await fetch(url);
+        if (seq !== searchSeq.current) return; // superseded by a newer search
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         setResults(Array.isArray(data.hits) ? data.hits : []);
       } catch {
+        if (seq !== searchSeq.current) return;
         setError(t('mods.search_failed'));
       }
-      setLoading(false);
-      setSearched(true);
+      if (seq === searchSeq.current) {
+        setLoading(false);
+        setSearched(true);
+      }
     },
     [category, gameVersion, loader, t],
   );
 
+  // Debounced auto-search: rapid filter typing (or filter changes) coalesces
+  // into a single network request instead of one per keystroke.
   useEffect(() => {
-    doSearch('');
+    const timer = window.setTimeout(() => {
+      doSearch('');
+    }, 300);
+    return () => window.clearTimeout(timer);
   }, [doSearch]);
 
   const handleDownload = async (hit: ModrinthHit) => {

@@ -5,6 +5,7 @@ import { spawn } from 'child_process';
 import { downloadFile } from '../downloader/downloadFile';
 import { downloadVersion } from '../downloader/downloaderManager';
 import { findJavaPath } from '../launcher/launcher';
+import { isSafeVersionId } from '../../shared/utils';
 
 export type LoaderKey = 'fabric' | 'forge' | 'neoforge' | 'quilt' | 'optifine';
 
@@ -27,6 +28,10 @@ export async function installLoader(
   gameDir: string,
   onProgress: InstallProgress = () => {},
 ): Promise<LoaderInstallResult> {
+  // gameVersion is renderer-supplied and later used to build versions/ paths.
+  if (!isSafeVersionId(gameVersion)) {
+    return { success: false, error: '无效的游戏版本' };
+  }
   try {
     switch (loader) {
       case 'fabric':
@@ -237,7 +242,9 @@ async function installOptiFine(
 
   onProgress('installer', 40, '下载 OptiFine…');
   const downloadUrl = `https://bmclapi2.bangbang93.com/optifine/${gameVersion}/${chosen.type}/${chosen.patch}`;
-  const jarPath = path.join(os.tmpdir(), chosen.filename);
+  // chosen.filename comes from a remote API — strip any path components so a
+  // malicious response cannot write outside the temp dir.
+  const jarPath = path.join(os.tmpdir(), path.basename(chosen.filename));
   await downloadFile(downloadUrl, jarPath);
 
   onProgress('installer', 70, '运行 OptiFine 安装器…');

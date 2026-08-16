@@ -63,8 +63,10 @@ export function registerFontProtocol(): void {
       // rlv-font://fonts/<slug>/<file>
       const rel = decodeURIComponent(url.pathname.replace(/^\//, ''));
       const filePath = path.join(cacheDir(), rel);
-      // Prevent path traversal outside the cache.
-      if (!filePath.startsWith(cacheDir())) {
+      // Canonical containment check (path.relative, not a prefix compare —
+      // a sibling dir like "fonts-evil" must not be readable).
+      const relCheck = path.relative(cacheDir(), filePath);
+      if (relCheck.startsWith('..') || path.isAbsolute(relCheck)) {
         return new Response('forbidden', { status: 403 });
       }
       const buf = await fs.promises.readFile(filePath);

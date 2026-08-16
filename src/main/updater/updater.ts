@@ -8,9 +8,18 @@ export function setUpdaterWindow(win: BrowserWindow | null): void {
   mainWindow = win;
 }
 
+/** Current live window: the stored one if still alive, else any open window.
+ *  (On macOS a re-created window after all-windows-closed would otherwise be
+ *  missed and update status would silently vanish.) */
+function getWindow(): BrowserWindow | null {
+  if (mainWindow && !mainWindow.isDestroyed()) return mainWindow;
+  return BrowserWindow.getAllWindows().find((w) => !w.isDestroyed()) ?? null;
+}
+
 function pushStatus(status: string, data?: Record<string, unknown>): void {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send(IPC_CHANNELS.UPDATE_STATUS, { status, ...data });
+  const win = getWindow();
+  if (win) {
+    win.webContents.send(IPC_CHANNELS.UPDATE_STATUS, { status, ...data });
   }
 }
 

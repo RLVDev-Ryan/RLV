@@ -17,16 +17,16 @@ import {
   scanInstalledVersions,
   deleteVersion,
 } from './gameDirs/gameDirsStore';
-import { downloadVersion, fetchVersionManifest } from './downloader/downloaderManager';
+import { downloadVersion, fetchVersionManifest, cancelVersionDownload } from './downloader/downloaderManager';
 import { downloadFile } from './downloader/downloadFile';
 import { installLogger, getLogs, clearLogs, setLoggerWindow } from './logger';
 import { installLoader } from './installer/loaderInstaller';
 import { exportModpack, listModpackMods } from './modpack/modpackExporter';
 import { isFontCached, downloadFont, cancelFontDownload, registerFontProtocol } from './fonts/fontManager';
 import { applyPortablePaths, ensureDataDirs } from './paths';
-import { getAllConfigs, loadConfig, saveConfig, configDir } from './config/configManager';
+import { getAllConfigs, loadConfig, saveConfig, saveConfigs, configDir, isConfigName } from './config/configManager';
 import { getPlaylistInfo, playlistRoot, registerAudioProtocol } from './music/musicManager';
-import type { ConfigName } from '../shared/config';
+import { isSafeVersionId } from '../shared/utils';
 import type { LoaderKey, LoaderInstallProgress, ModpackExportOptions } from '../shared/constants';
 import { initAutoUpdater, downloadUpdate, quitAndInstall, setUpdaterWindow } from './updater/updater';
 import {
@@ -149,6 +149,10 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.DOWNLOAD_START, async (_event, versionId: string) => {
     try {
+      // Renderer-supplied id is used to build versions/<id> paths.
+      if (!isSafeVersionId(versionId)) {
+        return { success: false, error: 'invalid version id' };
+      }
       const gameDir = getDefaultGameDir();
       await downloadVersion(versionId, gameDir, (progress) => {
         if (mainWindow && !mainWindow.isDestroyed()) {
@@ -159,6 +163,11 @@ function registerIpcHandlers(): void {
     } catch (err) {
       return { success: false, error: err instanceof Error ? err.message : String(err) };
     }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.DOWNLOAD_CANCEL, () => {
+    cancelVersionDownload();
+    return { success: true };
   });
 
   // ── Game directories ──
@@ -183,6 +192,9 @@ function registerIpcHandlers(): void {
     return deleteVersion(versionId);
   });
   ipcMain.handle(IPC_CHANNELS.GAME_DIR_COMPLETE_FILES, async (_event, versionId: string) => {
+    if (!isSafeVersionId(versionId)) {
+      return { success: false, error: 'invalid version id' };
+    }
     const hit = scanInstalledVersions().find((v) => v.id === versionId);
     const gameDir = hit ? hit.gameDir : getDefaultGameDir();
     return completeVersionFiles(versionId, gameDir);
@@ -211,7 +223,7 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.ACCOUNTS_ADD_MICROSOFT, async () => {
     const account = await authenticateMicrosoft();
     if (account) {
-      addAccount(account, true);
+      return addAccount(account, true);
     }
     return account;
   });
@@ -221,7 +233,7 @@ function registerIpcHandlers(): void {
     async (_event, params: { serverUrl: string; username: string; password: string }) => {
       const result = await authenticateYggdrasil(params.serverUrl, params.username, params.password);
       if (result.success && result.account) {
-        addAccount(result.account, true);
+        return { ...result, account: addAccount(result.account, true) };
       }
       return result;
     },
@@ -235,8 +247,7 @@ function registerIpcHandlers(): void {
       uuid: offlineUUID(username),
       createdAt: Date.now(),
     };
-    addAccount(account, true);
-    return account;
+    return addAccount(account, true);
   });
 
   ipcMain.handle(IPC_CHANNELS.ACCOUNTS_REMOVE, (_event, id: string) => {
@@ -323,12 +334,40 @@ function registerIpcHandlers(): void {
 
   // ── .js config system ──
   ipcMain.handle(IPC_CHANNELS.CONFIG_GET_ALL, () => getAllConfigs());
-  ipcMain.handle(IPC_CHANNELS.CONFIG_GET, (_event, name: ConfigName) => loadConfig(name));
-  ipcMain.handle(IPC_CHANNELS.CONFIG_SET, (_event, name: ConfigName, data: unknown) => {
+  ipcMain.handle(IPC_CHANNELS.CONFIG_GET, (_event, name: unknown) => {
+    // name must be a whitelisted config name — never build a path from it.
+    if (!isConfigName(name)) return undefined;
+    return loadConfig(name);
+  });
+  ipcMain.handle(IPC_CHANNELS.CONFIG_SET, (_event, name: unknown, data: unknown) => {
     try {
+      if (!isConfigName(name)) {
+        return { success: false, error: 'unknown config name' };
+      }
       saveConfig(name, data as never);
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send(IPC_CHANNELS.CONFIG_CHANGED, { name, data: loadConfig(name) });
+      }
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  });
+
+  // Batch save (theme changes touch color/ui/picture/launcher at once) —
+  // one IPC round trip + one change instead of four.
+  ipcMain.handle(IPC_CHANNELS.CONFIG_SET_MANY, (_event, entries: unknown) => {
+    try {
+      if (!entries || typeof entries !== 'object' || Array.isArray(entries)) {
+        return { success: false, error: 'invalid entries' };
+      }
+      saveConfigs(entries as Record<string, unknown>);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        for (const name of Object.keys(entries)) {
+          if (isConfigName(name)) {
+            mainWindow.webContents.send(IPC_CHANNELS.CONFIG_CHANGED, { name, data: loadConfig(name) });
+          }
+        }
       }
       return { success: true };
     } catch (e) {
@@ -393,6 +432,9 @@ function registerIpcHandlers(): void {
 
   // ── Modpack export ──
   ipcMain.handle(IPC_CHANNELS.MODPACK_EXPORT, async (_event, versionId: string, options: ModpackExportOptions) => {
+    if (!isSafeVersionId(versionId)) {
+      return { success: false, error: 'invalid version id' };
+    }
     const hit = scanInstalledVersions().find((v) => v.id === versionId);
     const gameDir = hit ? hit.gameDir : getDefaultGameDir();
     const dialogOpts = {
@@ -438,6 +480,13 @@ function registerIpcHandlers(): void {
       if (!/^(cdn\.)?modrinth\.com$/.test(parsed.hostname)) {
         return { success: false, error: 'download source not allowed' };
       }
+      // The destination must be inside a configured game directory (the renderer
+      // supplies the path — don't let it write to arbitrary locations).
+      const resolvedDir = path.resolve(req.gameDir);
+      const allowedDirs = [getDefaultGameDir(), ...getAllGameDirs()].map((d) => path.resolve(d));
+      if (!allowedDirs.includes(resolvedDir)) {
+        return { success: false, error: 'game dir not allowed' };
+      }
       const filename = path.basename(req.filename); // strip any path traversal
       const dest = path.join(req.gameDir, 'mods', filename);
       const sendProgress = (stage: ModrinthProgress['stage'], percent: number, error?: string) => {
@@ -477,6 +526,9 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle(IPC_CHANNELS.EXPORT_LAUNCH_SCRIPT, async (_event, versionId: string, options?: LaunchOptions) => {
+    if (!isSafeVersionId(versionId)) {
+      return { success: false, error: 'invalid version id' };
+    }
     const account = getCurrentAccount();
     const auth = account
       ? {
@@ -491,6 +543,9 @@ function registerIpcHandlers(): void {
   ipcMain.handle(
     IPC_CHANNELS.LAUNCH_GAME,
     async (_event, versionId: string, playerName: string, options?: LaunchOptions) => {
+      if (!isSafeVersionId(versionId)) {
+        return { success: false, error: 'invalid version id' };
+      }
       const account = getCurrentAccount();
       const auth = account
         ? {

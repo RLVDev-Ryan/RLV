@@ -50,13 +50,19 @@ export default function App() {
 
   useEffect(() => {
     if (!window.electronAPI) return;
+    let hideTimer: number | null = null;
     const cleanup = window.electronAPI.updater.onStatus((s: UpdateStatus) => {
       setUpdate(s);
       if (s.status === 'not-available' || s.status === 'error') {
-        setTimeout(() => setUpdate(null), 4000);
+        // Reset any pending hide so a newer status isn't cleared early.
+        if (hideTimer) window.clearTimeout(hideTimer);
+        hideTimer = window.setTimeout(() => setUpdate(null), 4000);
       }
     });
-    return cleanup;
+    return () => {
+      cleanup();
+      if (hideTimer) window.clearTimeout(hideTimer);
+    };
   }, []);
 
   // Track launch progress globally so a background launch keeps updating the

@@ -11,6 +11,22 @@ import type { LaunchProgress } from '../../shared/constants';
 
 type ProgressCallback = (progress: LaunchProgress) => void;
 
+/** Run async tasks with a fixed concurrency limit (downloads are I/O bound). */
+async function mapLimit<T>(
+  items: T[],
+  limit: number,
+  worker: (item: T, index: number) => Promise<void>,
+): Promise<void> {
+  let next = 0;
+  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const i = next++;
+      await worker(items[i], i);
+    }
+  });
+  await Promise.all(runners);
+}
+
 /** Currently running Minecraft process (if any). */
 let runningProcess: ChildProcess | null = null;
 
@@ -107,13 +123,21 @@ function readVersionJson(versionId: string, gameDir: string): VersionJson | null
 /**
  * Resolve a version's full profile, following `inheritsFrom` (Fabric/Forge/…
  * profiles inherit the vanilla version). Merges libraries/args/mainClass and
- * returns which base version provides the client jar.
+ * returns which base version provides the client jar. `seen` guards against
+ * circular `inheritsFrom` chains (corrupt/malicious JSON would otherwise
+ * recurse forever and overflow the stack).
  */
-function resolveVersionJson(versionId: string, gameDir: string): { json: VersionJson; clientVersionId: string } | null {
+function resolveVersionJson(
+  versionId: string,
+  gameDir: string,
+  seen: Set<string> = new Set(),
+): { json: VersionJson; clientVersionId: string } | null {
+  if (seen.has(versionId)) return null;
+  seen.add(versionId);
   const json = readVersionJson(versionId, gameDir);
   if (!json) return null;
   if (json.inheritsFrom) {
-    const parent = resolveVersionJson(json.inheritsFrom, gameDir);
+    const parent = resolveVersionJson(json.inheritsFrom, gameDir, seen);
     if (parent) {
       return { json: mergeVersionJson(json, parent.json), clientVersionId: parent.clientVersionId };
     }
@@ -252,28 +276,22 @@ async function downloadLibraries(
   onProgress: ProgressCallback,
 ): Promise<string> {
   const libsDir = path.join(gameDir, 'libraries');
-  const libsPath: string[] = [];
+  const classpathEntries: string[] = [];
+  const tasks: { url: string; dest: string }[] = [];
   const libs = versionJson.libraries || [];
 
-  for (let i = 0; i < libs.length; i++) {
+  // First pass: decide the classpath order and which files are missing.
+  for (const lib of libs) {
     if (launchAborted) break;
-    const lib = libs[i];
     if (!isLibraryForCurrentOs(lib)) continue;
     // Skip natives for other OS/arch (declared as separate library entries).
     if (lib.name?.includes(':natives-') && !isNativeForCurrentPlatform(lib)) continue;
-    onProgress({ stage: 'libraries', percent: Math.round((i / libs.length) * 100) });
 
     const artifact = getArtifact(lib);
     if (artifact?.url && artifact.path) {
       const dest = path.join(libsDir, artifact.path);
-      if (!fs.existsSync(dest)) {
-        try {
-          await downloadFile(libraryUrl(artifact.url), dest);
-        } catch (err) {
-          console.error(`[Launcher] Failed to download library ${artifact.path}:`, err);
-        }
-      }
-      libsPath.push(dest);
+      classpathEntries.push(dest);
+      if (!fs.existsSync(dest)) tasks.push({ url: libraryUrl(artifact.url), dest });
     }
 
     // Native classifiers
@@ -286,19 +304,32 @@ async function downloadLibraries(
         const native = natives[nativeKey];
         if (native?.url && native.path) {
           const dest = path.join(libsDir, native.path);
-          if (!fs.existsSync(dest)) {
-            try {
-              await downloadFile(native.url, dest);
-            } catch (err) {
-              console.error(`[Launcher] Failed to download natives ${native.path}:`, err);
-            }
-          }
-          libsPath.push(dest);
+          classpathEntries.push(dest);
+          if (!fs.existsSync(dest)) tasks.push({ url: native.url, dest });
         }
       }
     }
   }
-  return libsPath.join(';');
+
+  // Download missing files concurrently; a failed library must NOT enter the
+  // classpath (it would produce a confusing ClassNotFound at game start).
+  const failed = new Set<string>();
+  let done = 0;
+  const total = Math.max(1, tasks.length);
+  await mapLimit(tasks, 8, async (task) => {
+    if (launchAborted) return;
+    try {
+      await downloadFile(task.url, task.dest);
+    } catch (err) {
+      console.error(`[Launcher] Failed to download library ${task.dest}:`, err);
+      failed.add(task.dest);
+    } finally {
+      done++;
+      onProgress({ stage: 'libraries', percent: Math.round((done / total) * 100) });
+    }
+  });
+
+  return classpathEntries.filter((d) => !failed.has(d)).join(';');
 }
 
 /**
@@ -360,8 +391,12 @@ export async function exportLaunchScript(
       clientVersionId,
     );
 
-    const quoted = args.map((a) => (/[\s"]/.test(a) ? `"${a.replace(/"/g, '\\"')}"` : a)).join(' ');
-    const bat = ['@echo off', `"${javaPath}" ${quoted}`, 'pause'].join('\r\n');
+    // Never write the real access token into an exported .bat — it would sit
+    // in plaintext on disk and leak if the script is shared. Substitute '0'
+    // (offline token) so the exported script stays runnable offline.
+    const safeArgs = args.map((a) => (auth.accessToken !== '0' && a.includes(auth.accessToken) ? '0' : a));
+    const quoted = safeArgs.map((a) => (/[\s"]/.test(a) ? `"${a.replace(/"/g, '\\"')}"` : a)).join(' ');
+    const bat = ['@echo off', 'rem RLV 启动脚本 — 访问令牌已脱敏', `"${javaPath}" ${quoted}`, 'pause'].join('\r\n');
 
     const scriptPath = path.join(gameDir, 'versions', versionId, 'launch.bat');
     fs.writeFileSync(scriptPath, bat, 'utf-8');
@@ -399,27 +434,33 @@ async function downloadAssets(
     }
   }
 
-  // Download objects
+  // Download objects (concurrently — first launch has thousands of files).
   const indexPath = path.join(indexDir, `${assetIndexId}.json`);
   if (fs.existsSync(indexPath)) {
     try {
       const index = JSON.parse(fs.readFileSync(indexPath, 'utf-8')) as AssetIndexJson;
       const objects = Object.values(index.objects || {});
-      for (let i = 0; i < objects.length; i++) {
+      const tasks: { url: string; dest: string }[] = [];
+      for (const obj of objects) {
         if (launchAborted) break;
-        const obj = objects[i];
         if (!obj?.hash) continue;
-        onProgress({ stage: 'assets', percent: Math.round((i / objects.length) * 100) });
         const hash = obj.hash;
         const dest = path.join(objectsDir, hash.slice(0, 2), hash);
-        if (!fs.existsSync(dest)) {
-          try {
-            await downloadFile(assetUrl(hash), dest);
-          } catch (err) {
-            console.error(`[Launcher] Failed to download asset ${hash}:`, err);
-          }
-        }
+        if (!fs.existsSync(dest)) tasks.push({ url: assetUrl(hash), dest });
       }
+      let done = 0;
+      const total = Math.max(1, tasks.length);
+      await mapLimit(tasks, 8, async (task) => {
+        if (launchAborted) return;
+        try {
+          await downloadFile(task.url, task.dest);
+        } catch (err) {
+          console.error(`[Launcher] Failed to download asset ${task.dest}:`, err);
+        } finally {
+          done++;
+          onProgress({ stage: 'assets', percent: Math.round((done / total) * 100) });
+        }
+      });
     } catch (err) {
       console.error('[Launcher] Failed to parse asset index:', err);
     }
@@ -457,12 +498,21 @@ function extractZip(zipPath: string, outDir: string, filter?: (name: string) => 
           }
           const dest = path.join(outDir, path.basename(name));
           const out = fs.createWriteStream(dest);
+          // Handle both sides of the pipe so a broken entry can never leave
+          // the extract hanging (which would stall the whole launch).
+          stream.on('error', () => {
+            out.destroy();
+            zipfile.readEntry();
+          });
+          out.on('error', () => {
+            stream.destroy();
+            zipfile.readEntry();
+          });
           stream.pipe(out);
           out.on('finish', () => {
             out.close();
             zipfile.readEntry();
           });
-          out.on('error', () => zipfile.readEntry());
         });
       });
       zipfile.on('end', () => {
@@ -482,6 +532,11 @@ function extractZip(zipPath: string, outDir: string, filter?: (name: string) => 
  */
 async function unpackNatives(versionJson: VersionJson, gameDir: string): Promise<string> {
   const nativesRoot = path.join(os.tmpdir(), `rlv-natives-${versionJson.id || 'mc'}`);
+  // Skip re-extraction when a previous launch already completed it (dlls are
+  // stable per version) — saves 1-2s on every subsequent launch.
+  const marker = path.join(nativesRoot, '.complete');
+  if (fs.existsSync(marker)) return nativesRoot;
+
   for (const sub of ['java', 'jna', 'lwjgl', 'netty']) {
     fs.mkdirSync(path.join(nativesRoot, sub), { recursive: true });
   }
@@ -511,6 +566,10 @@ async function unpackNatives(versionJson: VersionJson, gameDir: string): Promise
     if (!nativeJarPath || !fs.existsSync(nativeJarPath)) continue;
     await extractZip(nativeJarPath, nativesJavaDir, (name) => name.endsWith('.dll'));
   }
+
+  try {
+    fs.writeFileSync(marker, 'ok', 'utf-8');
+  } catch {}
 
   return nativesRoot;
 }

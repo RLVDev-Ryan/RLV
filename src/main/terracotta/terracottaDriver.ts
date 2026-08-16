@@ -62,8 +62,8 @@ async function httpGet(port: number, route: string, timeoutMs = 8000): Promise<T
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const res = await fetch(`http://127.0.0.1:${port}${route}`, { signal: ctrl.signal });
-    clearTimeout(timer);
     const text = await res.text();
+    clearTimeout(timer); // only after the full body arrived
     try {
       return JSON.parse(text) as TerracottaState;
     } catch {
@@ -93,11 +93,20 @@ export async function startDaemon(): Promise<DaemonHandle> {
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
   });
-  proc.stdout?.on('data', () => {});
-  proc.stderr?.on('data', () => {});
+  let stderrTail = '';
+  let spawnFailed = false;
+  proc.stderr?.on('data', (d: Buffer) => {
+    stderrTail = (stderrTail + d.toString()).slice(-2000);
+  });
+  proc.on('error', (err) => {
+    // ENOENT/EACCES… must not surface as an uncaught 'error' crash.
+    spawnFailed = true;
+    console.error('[Terracotta] daemon spawn error:', err.message);
+  });
 
   const deadline = Date.now() + DAEMON_START_TIMEOUT_MS;
   while (Date.now() < deadline) {
+    if (spawnFailed) break;
     try {
       const parsed = JSON.parse(fs.readFileSync(tmpFile, 'utf8'));
       if (parsed && typeof parsed.port === 'number') {
@@ -110,6 +119,12 @@ export async function startDaemon(): Promise<DaemonHandle> {
   try {
     proc.kill();
   } catch {}
+  // Report the real reason instead of always claiming a timeout.
+  if (spawnFailed) throw new Error('陶瓦联机程序启动失败');
+  if (proc.exitCode !== null) {
+    const tail = stderrTail.trim();
+    throw new Error(`陶瓦联机程序异常退出 (${proc.exitCode})${tail ? `: ${tail.slice(-300)}` : ''}`);
+  }
   throw new Error('陶瓦联机进程启动超时');
 }
 

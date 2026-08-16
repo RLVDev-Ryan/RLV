@@ -60,6 +60,10 @@ export default function AddAccountDialog({
     try {
       const err = await onYggdrasil(serverUrl.trim(), username.trim(), password);
       setError(err);
+    } catch (err) {
+      // A rejected IPC must still surface a reason instead of an unhandled
+      // rejection with a stuck loading spinner.
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
@@ -72,6 +76,8 @@ export default function AddAccountDialog({
     try {
       const err = await onOffline(offlineName.trim());
       setError(err);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
@@ -83,6 +89,8 @@ export default function AddAccountDialog({
     try {
       const err = await onMicrosoft();
       setError(err);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
@@ -147,7 +155,9 @@ export default function AddAccountDialog({
             <button
               className="btn btn--small btn--outline"
               style={{ marginTop: 8 }}
-              onClick={() => navigator.clipboard.writeText(deviceCode)}
+              onClick={() => {
+                navigator.clipboard.writeText(deviceCode).catch(() => {});
+              }}
             >
               {t('account.copy_code')}
             </button>

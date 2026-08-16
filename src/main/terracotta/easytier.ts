@@ -101,6 +101,7 @@ export function requestPort(bindLoopback = false): Promise<number> {
  */
 export function spawnCore(args: string[], rpcPort: number): EasyTierHandle {
   const exe = getCorePath();
+  let spawnFailed = false;
   const proc = spawn(exe, [...args, '-r', String(rpcPort)], {
     stdio: 'pipe',
     windowsHide: true,
@@ -116,6 +117,10 @@ export function spawnCore(args: string[], rpcPort: number): EasyTierHandle {
     detectPermissionIssue(text);
   });
   proc.on('error', (err) => {
+    // ENOENT/EACCES… — the process never started. Remember it so isAlive()
+    // cannot report a "ghost" running node (exitCode stays null on spawn
+    // failure, which previously made every dead core look alive).
+    spawnFailed = true;
     console.error('[EasyTier] spawn error:', err.message);
   });
   proc.on('close', (code) => {
@@ -125,7 +130,7 @@ export function spawnCore(args: string[], rpcPort: number): EasyTierHandle {
   return {
     pid: proc.pid ?? 0,
     rpcPort,
-    isAlive: () => proc.exitCode === null && proc.signalCode === null,
+    isAlive: () => !spawnFailed && proc.exitCode === null && proc.signalCode === null,
   };
 }
 

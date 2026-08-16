@@ -99,12 +99,23 @@ export default function AccountSelector({ current, accounts, onSelect, onAdd, on
               const isCurrent = current?.id === acc.id;
               const aTypeI18n = TYPE_I18N_KEY[acc.type];
               return (
-                <button
+                // A div with role="button": the remove button inside must be a
+                // real <button>, and <button> cannot nest <button>.
+                <div
                   key={acc.id}
+                  role="button"
+                  tabIndex={0}
                   className={`account-dropdown-item${isCurrent ? ' account-dropdown-item--active' : ''}`}
                   onClick={() => {
                     onSelect(acc.id);
                     setOpen(false);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onSelect(acc.id);
+                      setOpen(false);
+                    }
                   }}
                 >
                   <div className="account-dropdown-item-avatar">
@@ -147,7 +158,7 @@ export default function AccountSelector({ current, accounts, onSelect, onAdd, on
                       </svg>
                     </button>
                   )}
-                </button>
+                </div>
               );
             })}
           </div>

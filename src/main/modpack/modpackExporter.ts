@@ -41,6 +41,12 @@ export async function exportModpack(
     const archive = new mod.ZipArchive();
     archive.pipe(output);
 
+    // Disk/write errors on the output stream must fail the export, not crash
+    // the main process with an unhandled stream 'error'.
+    const streamError = new Promise<never>((_, reject) => {
+      output.on('error', (err) => reject(err));
+    });
+
     const entries: { key: string; include: boolean }[] = [
       { key: 'resourcepacks', include: options.includeResourcepacks },
       { key: 'shaderpacks', include: options.includeShaders },
@@ -81,7 +87,8 @@ export async function exportModpack(
       }
     }
 
-    await archive.finalize();
+    // finalize() rejects on archive errors; streamError rejects on disk errors.
+    await Promise.race([archive.finalize(), streamError]);
     return { success: true, path: destPath };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : String(err) };

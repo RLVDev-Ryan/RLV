@@ -66,3 +66,22 @@ export function saveLaunchSettings(settings: LaunchSettings): void {
     window.dispatchEvent(new CustomEvent('rlv:launch-settings-changed', { detail: launchSettingsCache }));
   }
 }
+
+/**
+ * Validate a version/loader id coming from the renderer over IPC before it is
+ * used to build filesystem paths (`versions/<id>/…`, `libraries/…`). Rejects
+ * path separators, `..`, leading dots/dashes and anything that could escape
+ * the game directory. Kept deliberately strict: real ids are like
+ * `1.20.1-fabric-0.15.11` / `fabric-loader-0.15.11-1.20.1`.
+ */
+const SAFE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._+-]*$/;
+
+export function isSafeVersionId(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    value.length > 0 &&
+    value.length <= 128 &&
+    !value.includes('..') &&
+    SAFE_ID_RE.test(value)
+  );
+}

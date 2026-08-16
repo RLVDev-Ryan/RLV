@@ -30,7 +30,12 @@ export function loadVersionSettings(versionId: string): VersionSettings {
 
 export function saveVersionSettings(versionId: string, partial: Partial<VersionSettings>): VersionSettings {
   const next = { ...loadVersionSettings(versionId), ...partial };
-  localStorage.setItem(KEY_PREFIX + versionId, JSON.stringify(next));
+  try {
+    localStorage.setItem(KEY_PREFIX + versionId, JSON.stringify(next));
+  } catch {
+    // Quota exceeded (multiple large custom-icon data URLs) — keep the
+    // in-memory value for this session instead of crashing the app.
+  }
   return next;
 }
 

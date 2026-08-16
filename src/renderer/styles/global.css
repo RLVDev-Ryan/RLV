@@ -2413,7 +2413,12 @@ body,
 }
 
 .logs-line {
-  min-height: 1.65em;
+  /* Fixed height so the LogsPage virtualizer can compute scroll offsets. */
+  height: 20px;
+  line-height: 20px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre;
 }
 
 .logs-empty {

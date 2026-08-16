@@ -4,6 +4,7 @@ import type { Account, MinecraftVersion, LaunchProgress } from '../../shared/con
 import { loadLaunchSettings, saveLaunchSettings } from '../../shared/utils';
 import { loadVersionSettings, resolveIcon } from '../../shared/versionSettings';
 import { launchStore } from '../stores/launchStore';
+import { configStore } from '../stores/configStore';
 import AccountSelector from '../components/AccountSelector';
 import AddAccountDialog from '../components/AddAccountDialog';
 import VersionSelector from '../components/VersionSelector';
@@ -28,6 +29,20 @@ export default function LaunchPage() {
   const [launching, setLaunching] = useState(launchStore.launching);
   const [launchProgress, setLaunchProgress] = useState<LaunchProgress | null>(launchStore.progress);
   const cancelledRef = useRef(false);
+
+  // Isolation toggle is backed by the (module-cached) launch settings; keep a
+  // reactive copy so the checkbox reflects the real config once
+  // configStore.loadAll() seeds the cache, and after any settings change.
+  const [isolation, setIsolation] = useState(loadLaunchSettings().isolation);
+  useEffect(() => {
+    const sync = () => setIsolation(loadLaunchSettings().isolation);
+    const unsub = configStore.subscribe(sync);
+    window.addEventListener('rlv:launch-settings-changed', sync);
+    return () => {
+      unsub();
+      window.removeEventListener('rlv:launch-settings-changed', sync);
+    };
+  }, []);
 
   useEffect(() => {
     const unsub = launchStore.subscribe(() => {
@@ -188,7 +203,10 @@ export default function LaunchPage() {
 
   const handleBackFromDetail = useCallback(() => {
     setDetailVersion(null);
-  }, []);
+    // Refresh the list — the user may have deleted/installed a version while
+    // inside the detail view (stale state would otherwise keep showing it).
+    loadVersions();
+  }, [loadVersions]);
 
   // ── Detail view ──
   if (detailVersion) {
@@ -287,8 +305,12 @@ export default function LaunchPage() {
           <label className="isolation-toggle" title={t('launch.isolation')}>
             <input
               type="checkbox"
-              checked={loadLaunchSettings().isolation}
-              onChange={(e) => saveLaunchSettings({ ...loadLaunchSettings(), isolation: e.target.checked })}
+              checked={isolation}
+              onChange={(e) => {
+                const next = e.target.checked;
+                setIsolation(next);
+                saveLaunchSettings({ ...loadLaunchSettings(), isolation: next });
+              }}
             />
             <span>{t('launch.isolation')}</span>
           </label>
@@ -297,7 +319,7 @@ export default function LaunchPage() {
             disabled={!selectedVersion || launching}
             onClick={handleLaunch}
           >
-            {launching ? '启动中…' : t('launch_page.launch')}
+            {launching ? t('launch.starting') : t('launch_page.launch')}
           </button>
           {launchProgress && (
             <div className="launch-progress">

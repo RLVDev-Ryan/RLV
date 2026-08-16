@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { themeStore, applyTheme, type ThemeSettings } from '../stores/themeStore';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { themeStore, applyTheme, previewAccent, type ThemeSettings } from '../stores/themeStore';
 import { useI18n, type I18nKey } from '../hooks/useI18n';
 import { CREDITS, type CreditDetail } from '../data/credits';
 import { DEFAULT_FONT, FONT_MANIFEST, FONT_OPTIONS } from '../../shared/fonts';
@@ -127,14 +127,23 @@ function LanguageSection({
         return;
       }
       fontStore._begin(value);
-      const result = await window.electronAPI.fonts.download(value);
-      if (!result.cancelled && result.success) {
-        injectFontFace(value);
-        apply();
-      } else if (!result.cancelled) {
-        await window.electronAPI.showAlert(result.error || t('settings.font.download_failed'));
+      try {
+        const result = await window.electronAPI.fonts.download(value);
+        if (!result.cancelled && result.success) {
+          injectFontFace(value);
+          apply();
+        } else if (!result.cancelled) {
+          await window.electronAPI.showAlert(result.error || t('settings.font.download_failed'));
+        }
+      } catch (err) {
+        // A rejected IPC must still clear the "downloading" banner, otherwise
+        // it would stay stuck forever and block all further font selections.
+        await window.electronAPI?.showAlert(
+          err instanceof Error ? err.message : String(err) || t('settings.font.download_failed'),
+        );
+      } finally {
+        fontStore._end();
       }
-      fontStore._end();
     },
     [t],
   );
@@ -413,8 +422,16 @@ function PersonalizationSection({
     setHexInput(theme.accentColor);
   }, [theme.accentColor]);
 
-  const handleColorPicker = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onThemeChange({ accentColor: e.target.value });
+  // Preview the picked color live (CSS vars only); persist exactly once when
+  // the native picker closes. Dragging the picker previously wrote 4 config
+  // files per input event.
+  const handleColorInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setHexInput(val);
+    previewAccent(val);
+  };
+  const handleColorCommit = () => {
+    onThemeChange({ accentColor: hexInput });
   };
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -430,6 +447,22 @@ function PersonalizationSection({
     },
     [onThemeChange],
   );
+
+  // Editing draft for the background path input. Commits are debounced so
+  // typing a path doesn't trigger an IPC disk read (and a config write) per
+  // keystroke.
+  const [bgDraft, setBgDraft] = useState(theme.bgImagePath ?? '');
+  useEffect(() => {
+    setBgDraft(theme.bgImagePath ?? '');
+  }, [theme.bgImagePath]);
+  useEffect(() => {
+    if (bgDraft === (theme.bgImagePath ?? '')) return;
+    const timer = setTimeout(() => {
+      if (bgDraft.trim()) setBgImage(bgDraft.trim());
+      else onThemeChange({ bgImagePath: null });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [bgDraft]);
 
   // Allow file drops on the page (Windows 11 fix)
   useEffect(() => {
@@ -478,6 +511,20 @@ function PersonalizationSection({
   const [musicCfg, setMusicCfg] = useState(() => configStore.get('music'));
   const [launcherCfg, setLauncherCfg] = useState(() => configStore.get('launcher'));
 
+  // Slider drafts: the thumb follows the local value immediately while the
+  // disk write is debounced (dragging a slider used to write a config file
+  // on every input event).
+  const [uiDraft, setUiDraft] = useState<typeof uiCfg>(uiCfg);
+  const [volDraft, setVolDraft] = useState(musicCfg.volume);
+  const uiTimer = useRef<number | null>(null);
+  const musicTimer = useRef<number | null>(null);
+  useEffect(() => {
+    setUiDraft(uiCfg);
+  }, [uiCfg]);
+  useEffect(() => {
+    setVolDraft(musicCfg.volume);
+  }, [musicCfg.volume]);
+
   useEffect(() => {
     const unsub = configStore.subscribe(() => {
       setUiCfg(configStore.get('ui'));
@@ -489,11 +536,19 @@ function PersonalizationSection({
   }, []);
 
   const updateUi = (k: keyof typeof uiCfg, v: number | boolean) => {
-    configStore.update('ui', { ...configStore.get('ui'), [k]: v });
-    applyTheme(themeStore.current);
+    setUiDraft((prev) => ({ ...prev, [k]: v }));
+    applyTheme(themeStore.current); // live CSS vars
+    if (uiTimer.current) window.clearTimeout(uiTimer.current);
+    uiTimer.current = window.setTimeout(() => {
+      configStore.update('ui', { ...configStore.get('ui'), [k]: v });
+    }, 300);
   };
   const updateMusic = (k: 'enabled' | 'volume' | 'playlistPath', v: unknown) => {
-    configStore.update('music', { ...configStore.get('music'), [k]: v });
+    if (k === 'volume') setVolDraft(Number(v));
+    if (musicTimer.current) window.clearTimeout(musicTimer.current);
+    musicTimer.current = window.setTimeout(() => {
+      configStore.update('music', { ...configStore.get('music'), [k]: v });
+    }, 300);
   };
   const pickMusicDir = async () => {
     const dir = await window.electronAPI?.openDirectory();
@@ -562,12 +617,8 @@ function PersonalizationSection({
           <input
             className="form-input"
             type="text"
-            value={theme.bgImagePath ?? ''}
-            onChange={(e) => {
-              const val = e.target.value;
-              if (val) setBgImage(val);
-              else onThemeChange({ bgImagePath: null });
-            }}
+            value={bgDraft}
+            onChange={(e) => setBgDraft(e.target.value)}
             placeholder={t('settings.bg.placeholder')}
             style={{ flex: 1 }}
           />
@@ -636,7 +687,8 @@ function PersonalizationSection({
               type="color"
               className="color-picker-native"
               value={theme.accentColor}
-              onChange={handleColorPicker}
+              onInput={handleColorInput}
+              onBlur={handleColorCommit}
             />
             <div className="color-picker-preview" style={{ background: theme.accentColor }} />
           </div>
@@ -672,40 +724,40 @@ function PersonalizationSection({
         <h3 className="settings-card-title">{t('settings.ui.title')}</h3>
         <div className="form-group">
           <label className="form-label">
-            {t('settings.ui.radius')}: {uiCfg.radius}px
+            {t('settings.ui.radius')}: {uiDraft.radius}px
           </label>
           <input
             type="range"
             className="form-range"
             min={4}
             max={24}
-            value={uiCfg.radius}
+            value={uiDraft.radius}
             onChange={(e) => updateUi('radius', Number(e.target.value))}
           />
         </div>
         <div className="form-group">
           <label className="form-label">
-            {t('settings.ui.blur')}: {uiCfg.blur}px
+            {t('settings.ui.blur')}: {uiDraft.blur}px
           </label>
           <input
             type="range"
             className="form-range"
             min={0}
             max={40}
-            value={uiCfg.blur}
+            value={uiDraft.blur}
             onChange={(e) => updateUi('blur', Number(e.target.value))}
           />
         </div>
         <div className="form-group">
           <label className="form-label">
-            {t('settings.ui.opacity')}: {Math.round(uiCfg.opacity * 100)}%
+            {t('settings.ui.opacity')}: {Math.round(uiDraft.opacity * 100)}%
           </label>
           <input
             type="range"
             className="form-range"
             min={50}
             max={100}
-            value={uiCfg.opacity * 100}
+            value={uiDraft.opacity * 100}
             onChange={(e) => updateUi('opacity', Number(e.target.value) / 100)}
           />
         </div>
@@ -747,14 +799,14 @@ function PersonalizationSection({
         </label>
         <div className="form-group">
           <label className="form-label">
-            {t('settings.music.volume')}: {musicCfg.volume}%
+            {t('settings.music.volume')}: {volDraft}%
           </label>
           <input
             type="range"
             className="form-range"
             min={0}
             max={100}
-            value={musicCfg.volume}
+            value={volDraft}
             onChange={(e) => updateMusic('volume', Number(e.target.value))}
           />
         </div>
@@ -796,21 +848,21 @@ function PersonalizationSection({
         <h4 className="settings-sub-title">{t('settings.music.ball_settings')}</h4>
         <div className="form-group">
           <label className="form-label">
-            {t('settings.music.ball_radius')}: {uiCfg.musicBallRadius}px
+            {t('settings.music.ball_radius')}: {uiDraft.musicBallRadius}px
           </label>
           <input
             type="range"
             className="form-range"
             min={4}
             max={24}
-            value={uiCfg.musicBallRadius}
+            value={uiDraft.musicBallRadius}
             onChange={(e) => updateUi('musicBallRadius', Number(e.target.value))}
           />
         </div>
         <label className="export-checkbox">
           <input
             type="checkbox"
-            checked={uiCfg.musicBallRadiusFollow}
+            checked={uiDraft.musicBallRadiusFollow}
             onChange={(e) => updateUi('musicBallRadiusFollow', e.target.checked)}
           />
           <span>{t('settings.music.ball_radius_follow')}</span>

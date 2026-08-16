@@ -48,6 +48,7 @@ export const IPC_CHANNELS = {
   DOWNLOAD_LIST_VERSIONS: 'download:list-versions',
   DOWNLOAD_START: 'download:start',
   DOWNLOAD_PROGRESS: 'download:progress',
+  DOWNLOAD_CANCEL: 'download:cancel',
 
   // Shell
   SHELL_OPEN_PATH: 'shell:open-path',
@@ -81,6 +82,7 @@ export const IPC_CHANNELS = {
   CONFIG_GET_ALL: 'config:get-all',
   CONFIG_GET: 'config:get',
   CONFIG_SET: 'config:set',
+  CONFIG_SET_MANY: 'config:set-many',
   CONFIG_CHANGED: 'config:changed',
   CONFIG_OPEN_DIR: 'config:open-dir',
   CONFIG_OPEN_DATA_DIR: 'config:open-data-dir',
@@ -181,19 +183,6 @@ export function getLoaderVersion(id: string): string | null {
   const match = id.match(/(?:-fabric|-forge|-neoforge|-quilt)-(.+)$/);
   return match ? match[1] : null;
 }
-
-/** Hardcoded version list */
-export const INSTALLED_VERSIONS: MinecraftVersion[] = [
-  { id: '1.20.1', releaseDate: '2023-09-12', type: 'release', loader: null },
-  { id: '1.20.1-fabric-0.15.11', releaseDate: '2023-09-12', type: 'release', loader: 'fabric' },
-  { id: '1.20.1-forge-47.2.0', releaseDate: '2023-09-12', type: 'release', loader: 'forge' },
-  { id: '1.21', releaseDate: '2024-06-13', type: 'release', loader: null },
-  { id: '1.21-fabric-0.16.0', releaseDate: '2024-06-13', type: 'release', loader: 'fabric' },
-  { id: '1.21-neoforge-21.0.0', releaseDate: '2024-06-13', type: 'release', loader: 'neoforge' },
-  { id: '1.21.1', releaseDate: '2024-08-07', type: 'release', loader: null },
-  { id: '1.21.1-fabric-0.16.0', releaseDate: '2024-08-07', type: 'release', loader: 'fabric' },
-  { id: '1.21.1-forge-52.0.0', releaseDate: '2024-08-07', type: 'release', loader: 'forge' },
-];
 
 /** Path to vanilla grass block icon */
 export const VANILLA_ICON = 'assets/icons/grass.png';

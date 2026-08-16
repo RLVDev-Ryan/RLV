@@ -9,24 +9,43 @@ interface CropModalProps {
 
 const BOX = 360;
 const OUTPUT = 256;
+/** Sources larger than this edge are downscaled once before cropping. */
+const MAX_WORK_EDGE = 1024;
 
 /** Square image cropper: drag to move the selection, drag the corner to resize. */
 export default function CropModal({ src, onConfirm, onCancel }: CropModalProps) {
   const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const [imgSize, setImgSize] = useState({ w: 0, h: 0 });
+  const [workSrc, setWorkSrc] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const selRef = useRef({ x: 0, y: 0, size: 0 });
   const [, force] = useState(0);
 
   useEffect(() => {
     const img = new Image();
+    img.onerror = () => setLoadFailed(true);
     img.onload = () => {
-      const scale = Math.min(BOX / img.naturalWidth, BOX / img.naturalHeight);
-      const w = img.naturalWidth * scale;
-      const h = img.naturalHeight * scale;
-      setImgSize({ w, h });
-      const size = Math.min(w, h) * 0.7;
-      selRef.current = { x: (w - size) / 2, y: (h - size) / 2, size };
+      // A 20MB photo must not stay fully decoded twice in memory just to
+      // produce a 256×256 icon — downscale the source once up front.
+      const scale = Math.min(1, MAX_WORK_EDGE / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.max(1, Math.round(img.naturalWidth * scale));
+      const h = Math.max(1, Math.round(img.naturalHeight * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (ctx) ctx.drawImage(img, 0, 0, w, h);
+      const downscaled = canvas.toDataURL('image/png');
+      setWorkSrc(downscaled);
+      setLoadFailed(false);
+      // BOX-fit preview math on the (downscaled) working image.
+      const boxScale = Math.min(BOX / w, BOX / h);
+      const pw = w * boxScale;
+      const ph = h * boxScale;
+      setImgSize({ w: pw, h: ph });
+      const size = Math.min(pw, ph) * 0.7;
+      selRef.current = { x: (pw - size) / 2, y: (ph - size) / 2, size };
       force((n) => n + 1);
     };
     img.src = src;
@@ -90,7 +109,9 @@ export default function CropModal({ src, onConfirm, onCancel }: CropModalProps) 
   }, [imgSize]);
 
   const confirm = () => {
+    if (!workSrc) return;
     const img = new Image();
+    img.onerror = () => setLoadFailed(true);
     img.onload = () => {
       const { x, y, size } = selRef.current;
       const scale = img.naturalWidth / imgSize.w;
@@ -103,7 +124,7 @@ export default function CropModal({ src, onConfirm, onCancel }: CropModalProps) 
         onConfirm(canvas.toDataURL('image/png'));
       }
     };
-    img.src = src;
+    img.src = workSrc;
   };
 
   const { x, y, size } = selRef.current;
@@ -120,14 +141,15 @@ export default function CropModal({ src, onConfirm, onCancel }: CropModalProps) 
         >
           {imgSize.w > 0 && (
             <>
-              <img src={src} style={{ width: imgSize.w, height: imgSize.h }} draggable={false} />
+              <img src={workSrc ?? src} style={{ width: imgSize.w, height: imgSize.h }} draggable={false} />
               <div className="crop-sel" style={{ left: x, top: y, width: size, height: size }}>
                 <div className="crop-sel-handle" />
               </div>
             </>
           )}
         </div>
-        <p className="crop-hint">{t('version.icon_crop_hint')}</p>
+        {loadFailed && <p className="crop-hint crop-hint--error">{t('version.icon_load_failed')}</p>}
+        {!loadFailed && <p className="crop-hint">{t('version.icon_crop_hint')}</p>}
         <div className="crop-actions">
           <button className="btn btn--small" onClick={onCancel}>
             {t('common.cancel')}
@@ -135,7 +157,7 @@ export default function CropModal({ src, onConfirm, onCancel }: CropModalProps) 
           <button className="btn btn--small btn--ghost" onClick={() => onConfirm(src)}>
             {t('version.icon_original')}
           </button>
-          <button className="btn btn--small btn--primary" onClick={confirm}>
+          <button className="btn btn--small btn--primary" onClick={confirm} disabled={loadFailed || !workSrc}>
             {t('common.confirm')}
           </button>
         </div>

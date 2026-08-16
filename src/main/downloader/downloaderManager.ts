@@ -2,9 +2,18 @@ import path from 'path';
 import fs from 'fs';
 import { downloadFile } from './downloadFile';
 import { versionManifestUrl, versionJsonUrl, versionClientUrl } from '../mirrors';
+import { isSafeVersionId } from '../../shared/utils';
 import type { DownloadProgress, VersionManifestEntry } from '../../shared/constants';
 
 type ProgressCallback = (progress: DownloadProgress) => void;
+
+/** Abort signal for the in-flight version download (single download at a time). */
+let activeSignal: { aborted: boolean } | null = null;
+
+/** Cancel the currently running version download (if any). */
+export function cancelVersionDownload(): void {
+  if (activeSignal) activeSignal.aborted = true;
+}
 
 /**
  * Fetch the version manifest (via the configured mirror).
@@ -22,12 +31,19 @@ export async function fetchVersionManifest(): Promise<VersionManifestEntry[]> {
  * Download and install a Minecraft version.
  */
 export async function downloadVersion(versionId: string, gameDir: string, onProgress: ProgressCallback): Promise<void> {
+  // Defense in depth: versionId arrives over IPC — never let it escape the
+  // versions/ tree (e.g. "../../evil").
+  if (!isSafeVersionId(versionId)) throw new Error('无效的版本 ID');
   const versionDir = path.join(gameDir, 'versions', versionId);
   fs.mkdirSync(versionDir, { recursive: true });
 
   const clientPath = path.join(versionDir, `${versionId}.jar`);
   const jsonPath = path.join(versionDir, `${versionId}.json`);
 
+  // Register this download as the cancellable one (downloadFile checks the
+  // flag on every chunk and aborts cleanly).
+  const signal = { aborted: false };
+  activeSignal = signal;
   try {
     // Step 1: get version manifest
     onProgress({ versionId, stage: 'manifest', percent: 0 });
@@ -51,6 +67,8 @@ export async function downloadVersion(versionId: string, gameDir: string, onProg
       mainClass?: string;
     };
 
+    if (signal.aborted) throw new Error('下载已取消');
+
     // Save the version JSON
     fs.writeFileSync(jsonPath, JSON.stringify(versionData, null, 2));
     onProgress({ versionId, stage: 'manifest', percent: 40 });
@@ -60,14 +78,21 @@ export async function downloadVersion(versionId: string, gameDir: string, onProg
     if (!officialClient) throw new Error('No client download URL');
     const clientUrl = versionClientUrl(versionId, officialClient);
     onProgress({ versionId, stage: 'client', percent: 0 });
-    await downloadFile(clientUrl, clientPath, (pct) => {
-      onProgress({ versionId, stage: 'client', percent: pct });
-    });
+    await downloadFile(
+      clientUrl,
+      clientPath,
+      (pct) => {
+        onProgress({ versionId, stage: 'client', percent: pct });
+      },
+      signal,
+    );
 
     onProgress({ versionId, stage: 'done', percent: 100 });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     onProgress({ versionId, stage: 'error', percent: 0, error: message });
     throw err;
+  } finally {
+    if (activeSignal === signal) activeSignal = null;
   }
 }

@@ -36,6 +36,7 @@ export interface TerracottaAPI {
   join: (inviteCode: string) => Promise<TerracottaJoinResult>;
   stop: () => Promise<{ success: boolean }>;
   players: () => Promise<TerracottaPlayersResult>;
+  onPermissionError: (callback: () => void) => () => void;
 }
 
 export interface GameDirsAPI {
@@ -72,6 +73,7 @@ export interface UpdateAPI {
 export interface DownloadAPI {
   listVersions: () => Promise<{ success: boolean; versions: VersionManifestEntry[] }>;
   start: (versionId: string) => Promise<{ success: boolean; error?: string }>;
+  cancel: () => Promise<{ success: boolean }>;
   onProgress: (callback: (progress: DownloadProgress) => void) => () => void;
 }
 
@@ -114,6 +116,7 @@ export interface ConfigAPI {
   getAll: () => Promise<Record<string, unknown>>;
   get: (name: string) => Promise<unknown>;
   set: (name: string, data: unknown) => Promise<{ success: boolean; error?: string }>;
+  setMany: (entries: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;
   openDir: () => Promise<{ success: boolean; error?: string }>;
   openDataDir: () => Promise<{ success: boolean; error?: string }>;
   onChanged: (callback: (e: { name: string; data: unknown }) => void) => () => void;

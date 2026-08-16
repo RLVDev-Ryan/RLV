@@ -2,6 +2,7 @@ import { app } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import type { InstalledVersionInfo, ModLoader } from '../../shared/constants';
+import { isSafeVersionId } from '../../shared/utils';
 import { getDefaultGameDir } from '../paths';
 
 const DIRS_FILE = path.join(app.getPath('userData'), 'game-dirs.json');
@@ -132,6 +133,10 @@ export function removeGameDir(dir: string): string[] {
 }
 
 export function getVersionDir(versionId: string): string {
+  // Reject IPC-supplied ids that could escape the versions/ tree ("../..").
+  if (!isSafeVersionId(versionId)) {
+    return path.join(getDefaultDir(), 'versions', '__invalid__');
+  }
   const dirs = getAllGameDirs();
   // First check if any dir has this version
   for (const gameDir of dirs) {
@@ -146,6 +151,9 @@ export function getVersionDir(versionId: string): string {
 
 /** Delete a version's folder from whichever game dir contains it. */
 export function deleteVersion(versionId: string): { success: boolean; error?: string } {
+  if (!isSafeVersionId(versionId)) {
+    return { success: false, error: '无效的版本 ID' };
+  }
   const versionDir = getVersionDir(versionId);
   if (!fs.existsSync(versionDir)) {
     return { success: false, error: '版本文件夹不存在' };

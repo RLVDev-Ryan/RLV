@@ -166,9 +166,11 @@ function probeEgressIP(timeoutMs = 800): Promise<string | null> {
     try {
       const sock = dgram.createSocket('udp4');
       let done = false;
+      let timer: NodeJS.Timeout | undefined;
       const finish = (ip: string | null) => {
         if (done) return;
         done = true;
+        if (timer) clearTimeout(timer); // don't leave the timeout hanging
         try {
           sock.close();
         } catch {}
@@ -179,7 +181,7 @@ function probeEgressIP(timeoutMs = 800): Promise<string | null> {
         const addr = sock.address().address;
         finish(typeof addr === 'string' && addr && !addr.startsWith('127.') ? addr : null);
       });
-      setTimeout(() => finish(null), timeoutMs);
+      timer = setTimeout(() => finish(null), timeoutMs);
     } catch {
       resolve(null);
     }
@@ -516,13 +518,18 @@ export async function startEasyTierHost(port?: number, playerName?: string): Pro
       return { success: false, inviteCode: null, error: '无法启动房间服务' };
     }
   }
+  // Register state IMMEDIATELY so a user "stop" during the setup below can
+  // actually tear things down (previously mode was set only after ~2s of
+  // sleeps, so a stop in that window silently did nothing and the room still
+  // came up).
+  scaffoldingServer = scaffolding;
 
   // 3. easytier host node. Guests connect directly to our listener, so the
   //    invite code embeds this LAN IP + port (no public node needed).
   const rpc = await requestPort(true);
   const listener = await requestPort(false);
   if (rpc === 0 || listener === 0) {
-    scaffolding.stop();
+    await stopEasyTier();
     return { success: false, inviteCode: null, error: '无法分配端口' };
   }
   const hostname = `${HOST_HOSTNAME_PREFIX}${scaffolding.port}`;
@@ -556,25 +563,21 @@ export async function startEasyTierHost(port?: number, playerName?: string): Pro
     ],
     rpc,
   );
+  easyTier = handle;
+  mode = 'host';
 
   // Give the node a moment to come up before declaring success.
   await sleep(1500);
   if (!handle.isAlive()) {
-    killProcessTree(handle.pid);
-    scaffolding.stop();
+    await stopEasyTier();
     return { success: false, inviteCode: null, error: 'EasyTier 启动失败' };
   }
 
   const ip = await getLocalIP();
   if (!ip) {
-    killProcessTree(handle.pid);
-    scaffolding.stop();
+    await stopEasyTier();
     return { success: false, inviteCode: null, error: '无法确定本机局域网地址' };
   }
-
-  easyTier = handle;
-  scaffoldingServer = scaffolding;
-  mode = 'host';
 
   const inviteCode = encodeInviteCode(room, ip, listener);
 
@@ -723,16 +726,17 @@ export async function startEasyTierGuest(code: string, playerName?: string): Pro
   };
 }
 
-async function pingGuestProfile(): Promise<void> {
-  if (!guestClient || !guestClient.isAlive()) return;
-  await guestClient.sendSync(
+async function pingGuestProfile(): Promise<boolean> {
+  if (!guestClient || !guestClient.isAlive()) return false;
+  const res = await guestClient.sendSync(
     'c:player_ping',
     Buffer.from(JSON.stringify({ machine_id: machineId, name: guestPlayerName, vendor: vendor() }), 'utf8'),
   );
+  return res !== null;
 }
 
-async function refreshGuestPlayers(): Promise<void> {
-  if (!guestClient || !guestClient.isAlive()) return;
+async function refreshGuestPlayers(): Promise<boolean> {
+  if (!guestClient || !guestClient.isAlive()) return false;
   const res = await guestClient.sendSync('c:player_profiles_list');
   if (res && res.status === 0) {
     try {
@@ -745,12 +749,17 @@ async function refreshGuestPlayers(): Promise<void> {
           kind: p.kind === 'GUEST' ? 'GUEST' : 'HOST',
         }));
       }
-    } catch {}
+      return true;
+    } catch {
+      return false;
+    }
   }
+  return false;
 }
 
 function startWatchdog(kind: 'host' | 'guest'): void {
   stopWatchdog();
+  let failures = 0;
   watchdogTimer = setInterval(async () => {
     if (easyTier && !easyTier.isAlive()) {
       // easytier died — tear everything down.
@@ -762,8 +771,16 @@ function startWatchdog(kind: 'host' | 'guest'): void {
         await stopEasyTier();
         return;
       }
-      await pingGuestProfile();
-      await refreshGuestPlayers();
+      const pingOk = await pingGuestProfile();
+      const refreshOk = await refreshGuestPlayers();
+      // Consecutive scaffolding failures (transact now times out, so the queue
+      // can't grow unboundedly) eventually stop the room instead of silently
+      // showing a stale player list forever.
+      failures = pingOk && refreshOk ? 0 : failures + 1;
+      if (failures >= 3) {
+        console.error('[Terracotta] 房间服务连接持续失败，停止联机');
+        await stopEasyTier();
+      }
     }
   }, 5000);
 }

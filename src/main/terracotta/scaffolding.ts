@@ -25,6 +25,13 @@ export const FINGERPRINT = Buffer.from([
 /** Guest profiles are evicted after 10s without a player_ping. */
 const PROFILE_TIMEOUT_MS = 10_000;
 
+/**
+ * Max accepted request body. The length field is a u32 (up to 4GB) — an
+ * unauthenticated LAN peer must not be able to make us buffer arbitrary data
+ * until the main process OOMs.
+ */
+const MAX_BODY_LEN = 1024 * 1024;
+
 export interface ScaffoldingProfile extends RoomPlayer {
   lastPingAt: number;
 }
@@ -174,6 +181,12 @@ export function startScaffoldingServer(opts: ScaffoldingServerOptions): Promise<
           if (buffer.length < 1 + kindLen + 4) break;
           const kind = buffer.subarray(1, 1 + kindLen).toString('utf8');
           const bodyLen = buffer.readUInt32BE(1 + kindLen);
+          // A peer declaring an oversized body is hostile — drop the socket
+          // instead of buffering it.
+          if (bodyLen > MAX_BODY_LEN) {
+            socket.destroy();
+            return;
+          }
           const total = 1 + kindLen + 4 + bodyLen;
           if (buffer.length < total) break;
           const body = buffer.subarray(1 + kindLen + 4, total);
@@ -190,11 +203,10 @@ export function startScaffoldingServer(opts: ScaffoldingServerOptions): Promise<
     });
 
     server.on('error', (err) => {
-      if ((err as NodeJS.ErrnoException).code === 'EADDRINUSE' && opts.port !== 0) {
-        reject(err);
-      } else {
-        reject(err);
-      }
+      // The listen promise may already have resolved; reject is then a no-op.
+      // Close the profile store so its prune timer does not leak.
+      store.close();
+      reject(err);
     });
 
     server.listen(opts.port, '0.0.0.0', () => {
@@ -267,6 +279,10 @@ export class ScaffoldingClient {
   private constructor(socket: net.Socket) {
     this.socket = socket;
     this.socket.setNoDelay(true);
+    // Permanent error listener: between transactions no per-request handler is
+    // attached, so without this a socket error would surface as an uncaught
+    // 'error' event and crash the main process.
+    this.socket.on('error', () => {});
   }
 
   static open(port: number, timeoutMs = 5000): Promise<ScaffoldingClient> {
@@ -312,6 +328,7 @@ export class ScaffoldingClient {
       const chunks: Buffer[] = [];
       let received = 0;
       let settled = false;
+      let timer: NodeJS.Timeout | undefined;
       const settle = (v: PacketResponse | null) => {
         if (settled) return;
         settled = true;
@@ -333,7 +350,16 @@ export class ScaffoldingClient {
         this.socket.off('data', onData);
         this.socket.off('error', onError);
         this.socket.off('end', onEnd);
+        if (timer) clearTimeout(timer);
       };
+      // Response timeout: a silent peer must not hang the serialized request
+      // queue (and with it the whole join flow / player-list watchdog).
+      timer = setTimeout(() => {
+        settle(null);
+        try {
+          this.socket.destroy();
+        } catch {}
+      }, 5000);
       this.socket.on('data', onData);
       this.socket.on('error', onError);
       this.socket.on('end', onEnd);

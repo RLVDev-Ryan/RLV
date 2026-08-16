@@ -52,14 +52,8 @@ export function useI18n() {
   return { t: _t };
 }
 
-// Listen for locale changes from themeStore (via localeBridge)
+// Listen for locale changes from themeStore (via localeBridge). The initial
+// locale is applied by themeStore.hydrateFromConfig() once the .js configs
+// have been loaded (launcher.language). The old localStorage['rlv_theme'] read
+// was dead code — that key is never written anywhere.
 onLocaleChange((locale) => setLocale(locale as AppLocale));
-
-// Detect initial locale from localStorage
-try {
-  const raw = localStorage.getItem('rlv_theme');
-  if (raw) {
-    const parsed = JSON.parse(raw);
-    if (parsed.locale) setLocale(parsed.locale as AppLocale);
-  }
-} catch {}

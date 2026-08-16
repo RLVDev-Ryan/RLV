@@ -18,11 +18,22 @@ import { DEFAULT_CONFIGS, type ConfigName, type RlvConfigs } from '../../shared/
 
 const CONFIG_NAMES = Object.keys(DEFAULT_CONFIGS) as ConfigName[];
 
+/** Runtime guard for renderer-supplied config names (IPC boundary). */
+export function isConfigName(value: unknown): value is ConfigName {
+  return typeof value === 'string' && (CONFIG_NAMES as readonly string[]).includes(value);
+}
+
 export function configDir(): string {
   return path.join(app.getPath('userData'), 'config');
 }
 
 function configFile(name: ConfigName): string {
+  // Defense in depth: a name like "../../foo" must never escape the config
+  // directory (the file is later `require`d, so this is also a code-exec
+  // surface — only known config names may ever be loaded).
+  if (!isConfigName(name)) {
+    throw new Error(`未知配置: ${String(name)}`);
+  }
   return path.join(configDir(), `${name}.js`);
 }
 
@@ -79,6 +90,18 @@ export function saveConfig<K extends ConfigName>(name: K, data: RlvConfigs[K]): 
   try {
     delete require.cache[require.resolve(file)];
   } catch {}
+}
+
+/**
+ * Batch-save several configs in one IPC round trip (theme changes touch
+ * color/ui/picture/launcher at once). Each key is whitelist-checked.
+ */
+export function saveConfigs(entries: Record<string, unknown>): void {
+  for (const [name, data] of Object.entries(entries)) {
+    if (isConfigName(name)) {
+      saveConfig(name, data as never);
+    }
+  }
 }
 
 export function getAllConfigs(): RlvConfigs {
